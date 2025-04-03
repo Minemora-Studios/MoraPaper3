@@ -5,7 +5,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import javax.annotation.Nullable;
@@ -15,6 +14,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class MoraPaper {
+
+    public static ServerPlayer createDummyServerPlayer(MinecraftServer server, ServerLevel level, GameProfile gameProfile) {
+        return new ServerPlayer(server, level, gameProfile);
+    }
 
     public static void startNearestPlayerUpdater(ServerLevel level) {
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
