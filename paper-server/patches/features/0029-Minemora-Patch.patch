@@ -553,6 +553,20 @@ index 5e921c490814be31fc2843327c0e2cc76bda6620..dcd94778b207b3283034ae24f89612f8
          // Paper start - Ensure that client receives chat packets in the same order that we add into the message signature cache
          synchronized (this.messageSignatureCache) {
          this.send(
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 7ba7a00b8dee651ca7a3cab5b64b4ae11aa66da9..d52abec9209f9d3a0f881fe4f6c760183b3bfa93 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -4577,4 +4577,9 @@ public abstract class LivingEntity extends Entity implements Attackable {
+ 
+     public record Fallsounds(SoundEvent small, SoundEvent big) {
+     }
++
++    // MoraPaper start - LivingEntity equipment accessor
++    public EntityEquipment getEquipment() {
++        return this.equipment;
++    }
+ }
 diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
 index 73ba442b9d39bc021cd5eb6c1c0f98aed94a5a02..8b1fa093e02f32e6fdd266212bf547f5b7b264cf 100644
 --- a/net/minecraft/world/entity/Mob.java
