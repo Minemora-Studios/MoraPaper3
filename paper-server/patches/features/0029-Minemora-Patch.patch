@@ -458,10 +458,10 @@ index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..7972494411665dbb750729dc727c5175
              for (Entity entity : passengerEntity.getPassengers()) {
                  this.tickPassenger(passengerEntity, entity, isActive); // Paper - EAR 2
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 6457f41fe7882d8c532e16851400c37a67e8cd52..21b92a92c7515b0e9a94c9464fb8fdd1006cc796 100644
+index 6457f41fe7882d8c532e16851400c37a67e8cd52..cf6a67712429a835c3fcba4b541199d82ec5b2c5 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -478,6 +478,20 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -478,6 +478,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.maxHealthCache = this.getMaxHealth();
      }
  
@@ -477,12 +477,15 @@ index 6457f41fe7882d8c532e16851400c37a67e8cd52..21b92a92c7515b0e9a94c9464fb8fdd1
 +        this.adventure$displayName = net.kyori.adventure.text.Component.text(this.getScoreboardName()); // Paper
 +        this.bukkitPickUpLoot = true;
 +        this.maxHealthCache = this.getMaxHealth();
++        this.recipeBook = null;
++        this.stats = null;
++        this.advancements = null;
 +    }
 +
      @Override
      public BlockPos adjustSpawnLocation(ServerLevel level, BlockPos pos) {
          AABB aabb = this.getDimensions(Pose.STANDING).makeBoundingBox(Vec3.ZERO);
-@@ -2165,7 +2179,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2165,7 +2182,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendSystemMessage(mesage, false);
      }
  
@@ -495,7 +498,7 @@ index 6457f41fe7882d8c532e16851400c37a67e8cd52..21b92a92c7515b0e9a94c9464fb8fdd1
          if (this.acceptsSystemMessages(overlay)) {
              this.connection
                  .send(
-@@ -2193,6 +2212,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2193,6 +2215,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendChatMessage(message, filtered, boundType, null);
      }
      public void sendChatMessage(OutgoingChatMessage message, boolean filtered, ChatType.Bound boundType, @Nullable Component unsigned) {
