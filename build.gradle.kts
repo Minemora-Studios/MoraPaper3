@@ -15,6 +15,8 @@ plugins {
     id("io.papermc.paperweight.core") version "2.0.0-beta.16" apply false
 }
 
+apply(from = "deploy.gradle")
+
 subprojects {
     apply(plugin = "java-library")
     apply(plugin = "maven-publish")
