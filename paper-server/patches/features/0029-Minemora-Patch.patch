@@ -53,6 +53,19 @@ index 4635182c73f28f63ba84982cb6bcb422221b738e..eb40e9b8051c7e159146104383a747d1
              // Paper end
              PlayerChatMessage playerChatMessage = this.message.filter(filtered);
              playerChatMessage = unsigned != null ? playerChatMessage.withUnsignedContent(unsigned) : playerChatMessage; // Paper
+diff --git a/net/minecraft/network/protocol/game/ClientboundPlayerInfoUpdatePacket.java b/net/minecraft/network/protocol/game/ClientboundPlayerInfoUpdatePacket.java
+index d13d67a3925f96a2a27159d303e8c19478971bd7..6b4dde35e530c964aa605f0f64e00c6a24ceb474 100644
+--- a/net/minecraft/network/protocol/game/ClientboundPlayerInfoUpdatePacket.java
++++ b/net/minecraft/network/protocol/game/ClientboundPlayerInfoUpdatePacket.java
+@@ -228,7 +228,7 @@ public class ClientboundPlayerInfoUpdatePacket implements Packet<ClientGamePacke
+                 player.getUUID(),
+                 player.getGameProfile(),
+                 listed, // Paper - Add Listing API for Player
+-                player.connection.latency(),
++                player.connection == null ? player.fakePing : player.connection.latency(),
+                 player.gameMode(),
+                 player.getTabListDisplayName(),
+                 player.isModelPartShown(PlayerModelPart.HAT),
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
 index f1373fd5fdebb9f4600ba7f32a5df6188de3a0e9..d49597655c93e86d4dc44eb09fdb118f3b9d3b1f 100644
 --- a/net/minecraft/server/MinecraftServer.java
@@ -458,10 +471,18 @@ index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..7972494411665dbb750729dc727c5175
              for (Entity entity : passengerEntity.getPassengers()) {
                  this.tickPassenger(passengerEntity, entity, isActive); // Paper - EAR 2
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 6457f41fe7882d8c532e16851400c37a67e8cd52..cf6a67712429a835c3fcba4b541199d82ec5b2c5 100644
+index 6457f41fe7882d8c532e16851400c37a67e8cd52..197a73cafb820372db1d968eb1c78a966cf9a32c 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -478,6 +478,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -212,6 +212,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     public final ServerPlayerGameMode gameMode;
+     private final PlayerAdvancements advancements;
+     private final ServerStatsCounter stats;
++    public int fakePing;
+     private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
+     private int lastRecordedFoodLevel = Integer.MIN_VALUE;
+     private int lastRecordedAirLevel = Integer.MIN_VALUE;
+@@ -478,6 +479,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.maxHealthCache = this.getMaxHealth();
      }
  
@@ -485,7 +506,7 @@ index 6457f41fe7882d8c532e16851400c37a67e8cd52..cf6a67712429a835c3fcba4b541199d8
      @Override
      public BlockPos adjustSpawnLocation(ServerLevel level, BlockPos pos) {
          AABB aabb = this.getDimensions(Pose.STANDING).makeBoundingBox(Vec3.ZERO);
-@@ -2165,7 +2182,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2165,7 +2183,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendSystemMessage(mesage, false);
      }
  
@@ -498,7 +519,7 @@ index 6457f41fe7882d8c532e16851400c37a67e8cd52..cf6a67712429a835c3fcba4b541199d8
          if (this.acceptsSystemMessages(overlay)) {
              this.connection
                  .send(
-@@ -2193,6 +2215,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2193,6 +2216,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendChatMessage(message, filtered, boundType, null);
      }
      public void sendChatMessage(OutgoingChatMessage message, boolean filtered, ChatType.Bound boundType, @Nullable Component unsigned) {
