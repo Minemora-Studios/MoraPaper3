@@ -116,6 +116,40 @@ index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..7fcacaf184fe9a4e299fa82a4cb1bd57
      private void getFullChunk(long chunkPos, Consumer<LevelChunk> fullChunkGetter) {
          // Paper start - rewrite chunk system
          // note: bypass currentlyLoaded from getChunkNow
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..eab6ecaa7561779a52c1fdb19fa0a9ec2be9aecc 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -175,7 +175,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+     private static final Logger LOGGER = LogUtils.getLogger();
+     private static final int EMPTY_TIME_NO_TICK = 300;
+     private static final int MAX_SCHEDULED_TICKS_PER_TICK = 65536;
+-    final List<ServerPlayer> players = Lists.newArrayList();
++    final List<ServerPlayer> players = new java.util.concurrent.CopyOnWriteArrayList<>(); // MoraPaper - Use CopyOnWriteArrayList for safe async loops
+     public final ServerChunkCache chunkSource;
+     private final MinecraftServer server;
+     public final net.minecraft.world.level.storage.PrimaryLevelData serverLevelData; // CraftBukkit - type
+@@ -562,6 +562,11 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+     }
+     // Paper end - chunk tick iteration
+ 
++    // MoraPaper - Get async entities from our tick list (calculated in another thread)
++    public java.util.concurrent.ConcurrentLinkedQueue<Entity> getEntitiesAsync() {
++        return entityTickList.getEntitiesAsync();
++    }
++
+     public ServerLevel(
+         MinecraftServer server,
+         Executor dispatcher,
+@@ -671,6 +676,8 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+         this.chunkDataController = new ca.spottedleaf.moonrise.patches.chunk_system.io.datacontroller.ChunkDataController((ServerLevel)(Object)this, this.chunkTaskScheduler);
+         // Paper end - rewrite chunk system
+         this.getCraftServer().addWorld(this.getWorld()); // CraftBukkit
++        // MoraPaper
++        net.minemora.MoraPaper.startNearestPlayerUpdater(this);
+     }
+ 
+     // Paper start
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
 index 6457f41fe7882d8c532e16851400c37a67e8cd52..2b869da876c89a934541663b8cda775e14d6d99e 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
@@ -158,6 +192,70 @@ index 5e921c490814be31fc2843327c0e2cc76bda6620..dcd94778b207b3283034ae24f89612f8
          // Paper start - Ensure that client receives chat packets in the same order that we add into the message signature cache
          synchronized (this.messageSignatureCache) {
          this.send(
+diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
+index 73ba442b9d39bc021cd5eb6c1c0f98aed94a5a02..8b1fa093e02f32e6fdd266212bf547f5b7b264cf 100644
+--- a/net/minecraft/world/entity/Mob.java
++++ b/net/minecraft/world/entity/Mob.java
+@@ -486,8 +486,13 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+         this.setSpeed(0.0F);
+     }
+ 
++    // MoraPaper
++    public static int distanceSqrToDisableAi = 400;
++
+     @Override
+     public void aiStep() {
++        if(nearestPlayerData.distanceSqr > distanceSqrToDisableAi) return;
++
+         super.aiStep();
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("looting");
+@@ -678,21 +683,39 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+         return false;
+     }
+ 
++    // MoraPaper
++    public net.minemora.MoraPaper.PlayerDistanceData nearestPlayerData = new net.minemora.MoraPaper.PlayerDistanceData();
++
++    public @Nullable Player getNearestPlayerNew() {
++        if(nearestPlayerData.uuid != null) {
++            org.bukkit.entity.Player bukkitPlayer = org.bukkit.Bukkit.getPlayer(nearestPlayerData.uuid);
++            if(bukkitPlayer != null) {
++                return ((org.bukkit.craftbukkit.entity.CraftPlayer)bukkitPlayer).getHandle();
++            }
++            else {
++                nearestPlayerData.uuid = null;
++            }
++        }
++        return null;
++    }
++
+     @Override
+     public void checkDespawn() {
+         if (this.level().getDifficulty() == Difficulty.PEACEFUL && this.shouldDespawnInPeaceful()) {
+             this.discard(EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
+         } else if (!this.isPersistenceRequired() && !this.requiresCustomPersistence()) {
+-            Entity nearestPlayer = this.level().findNearbyPlayer(this, -1.0, EntitySelector.PLAYER_AFFECTS_SPAWNING); // Paper - Affects Spawning API
++            Player nearestPlayer = this.getNearestPlayerNew(); // MoraPaper - Optimize get nearest player
+             if (nearestPlayer != null) {
+                 // Paper start - Configurable despawn distances
++                // MoraPaper Start - Use our cached nearest player distance
+                 final io.papermc.paper.configuration.WorldConfiguration.Entities.Spawning.DespawnRangePair despawnRangePair = this.level().paperConfig().entities.spawning.despawnRanges.get(this.getType().getCategory());
+                 final io.papermc.paper.configuration.type.DespawnRange.Shape shape = this.level().paperConfig().entities.spawning.despawnRangeShape;
+-                final double dy = Math.abs(nearestPlayer.getY() - this.getY());
+-                final double dySqr = Mth.square(dy);
+-                final double dxSqr = Mth.square(nearestPlayer.getX() - this.getX());
+-                final double dzSqr = Mth.square(nearestPlayer.getZ() - this.getZ());
+-                final double distanceSquared = dxSqr + dzSqr + dySqr;
++                final double dy = nearestPlayerData.dy;
++                final double dySqr = nearestPlayerData.dySqr;
++                final double dxSqr = nearestPlayerData.dxSqr;
++                final double dzSqr = nearestPlayerData.dzSqr;
++                final double distanceSquared = nearestPlayerData.distanceSqr;
++                // MoraPaper End
+                 // Despawn if hard/soft limit is exceeded
+                 if (despawnRangePair.hard().shouldDespawn(shape, dxSqr, dySqr, dzSqr, dy) && this.removeWhenFarAway(distanceSquared)) {
+                     this.discard(EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
 diff --git a/net/minecraft/world/entity/ai/goal/GoalSelector.java b/net/minecraft/world/entity/ai/goal/GoalSelector.java
 index a927c2790c8ab9ccaa7161b970e10b0b44817dd8..22d369538f27d055d2adee72536869ee2804adf0 100644
 --- a/net/minecraft/world/entity/ai/goal/GoalSelector.java
@@ -171,3 +269,42 @@ index a927c2790c8ab9ccaa7161b970e10b0b44817dd8..22d369538f27d055d2adee72536869ee
      }
  
      public boolean hasTasks() {
+diff --git a/net/minecraft/world/level/entity/EntityTickList.java b/net/minecraft/world/level/entity/EntityTickList.java
+index 423779a2b690f387a4f0bd07b97b50e0baefda76..33cdab242a3d58c6cbe4ede3497f1864f05bcf7e 100644
+--- a/net/minecraft/world/level/entity/EntityTickList.java
++++ b/net/minecraft/world/level/entity/EntityTickList.java
+@@ -11,6 +11,9 @@ import net.minecraft.world.entity.Entity;
+ public class EntityTickList {
+     private final ca.spottedleaf.moonrise.common.list.IteratorSafeOrderedReferenceSet<net.minecraft.world.entity.Entity> entities = new ca.spottedleaf.moonrise.common.list.IteratorSafeOrderedReferenceSet<>(); // Paper - rewrite chunk system
+ 
++    // MoraPaper - async list to use entities from other threads
++    private final java.util.concurrent.ConcurrentLinkedQueue<net.minecraft.world.entity.Entity> asyncEntities = new java.util.concurrent.ConcurrentLinkedQueue<>();
++
+     private void ensureActiveIsNotIterated() {
+         // Paper - rewrite chunk system
+     }
+@@ -18,11 +21,13 @@ public class EntityTickList {
+     public void add(Entity entity) {
+         this.ensureActiveIsNotIterated();
+         this.entities.add(entity); // Paper - rewrite chunk system
++        this.asyncEntities.add(entity); // MoraPaper - async list to use entities from other threads
+     }
+ 
+     public void remove(Entity entity) {
+         this.ensureActiveIsNotIterated();
+         this.entities.remove(entity); // Paper - rewrite chunk system
++        this.asyncEntities.remove(entity); // MoraPaper - async list to use entities from other threads
+     }
+ 
+     public boolean contains(Entity entity) {
+@@ -43,4 +48,10 @@ public class EntityTickList {
+         }
+         // Paper end - rewrite chunk system
+     }
++
++    // MoraPaper - async list to use entities from other threads
++    public java.util.concurrent.ConcurrentLinkedQueue<Entity> getEntitiesAsync() {
++        return asyncEntities;
++    }
++
+ }
