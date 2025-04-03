@@ -90,10 +90,196 @@ index 0d8aefe8c886eaa4c33cbab53b0ad1c016f0531f..05c0d2b308b43b8b50eb126509607df3
              org.spigotmc.AsyncCatcher.catchOp("player tracker update"); // Spigot
              if (player != this.entity) {
 diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
-index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..7fcacaf184fe9a4e299fa82a4cb1bd57570e0dea 100644
+index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..86f61ad65097cbf37c217e6b60342ac0b2d5eb13 100644
 --- a/net/minecraft/server/level/ServerChunkCache.java
 +++ b/net/minecraft/server/level/ServerChunkCache.java
-@@ -619,12 +619,21 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -79,9 +79,11 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+     private NaturalSpawner.SpawnState lastSpawnState;
+     // Paper start
+     private final ca.spottedleaf.concurrentutil.map.ConcurrentLong2ReferenceChainedHashTable<net.minecraft.world.level.chunk.LevelChunk> fullChunks = new ca.spottedleaf.concurrentutil.map.ConcurrentLong2ReferenceChainedHashTable<>();
++
+     public int getFullChunksCount() {
+         return this.fullChunks.size();
+     }
++
+     long chunkFutureAwaitCounter;
+     // Paper end
+     // Paper start - rewrite chunk system
+@@ -102,7 +104,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+     }
+ 
+     private ChunkAccess syncLoad(final int chunkX, final int chunkZ, final ChunkStatus toStatus) {
+-        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler chunkTaskScheduler = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler();
++        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler chunkTaskScheduler = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler();
+         final CompletableFuture<ChunkAccess> completable = new CompletableFuture<>();
+         chunkTaskScheduler.scheduleChunkLoad(
+             chunkX, chunkZ, toStatus, true, ca.spottedleaf.concurrentutil.util.Priority.BLOCKING,
+@@ -130,9 +132,11 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         return ret;
+     }
+ 
+-    private ChunkAccess getChunkFallback(final int chunkX, final int chunkZ, final ChunkStatus toStatus,
+-                                         final boolean load) {
+-        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler chunkTaskScheduler = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler();
++    private ChunkAccess getChunkFallback(
++        final int chunkX, final int chunkZ, final ChunkStatus toStatus,
++        final boolean load
++    ) {
++        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler chunkTaskScheduler = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler();
+         final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager chunkHolderManager = chunkTaskScheduler.chunkHolderManager;
+ 
+         final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder currentChunk = chunkHolderManager.getChunkHolder(ca.spottedleaf.moonrise.common.util.CoordinateUtils.getChunkKey(chunkX, chunkZ));
+@@ -154,16 +158,18 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+ 
+         return load ? this.syncLoad(chunkX, chunkZ, toStatus) : null;
+     }
++
+     // Paper end - rewrite chunk system
+     // Paper start - chunk tick iteration optimisations
+     private final ca.spottedleaf.moonrise.common.util.SimpleThreadUnsafeRandom shuffleRandom = new ca.spottedleaf.moonrise.common.util.SimpleThreadUnsafeRandom(0L);
++
+     private void iterateTickingChunksFaster() {
+         final ServerLevel world = this.level;
+         final int randomTickSpeed = world.getGameRules().getInt(GameRules.RULE_RANDOMTICKING);
+ 
+         // TODO check on update: impl of forEachBlockTickingChunk will only iterate ENTITY ticking chunks!
+         // TODO check on update: consumer just runs tickChunk
+-        final ca.spottedleaf.moonrise.common.list.ReferenceList<net.minecraft.world.level.chunk.LevelChunk> entityTickingChunks = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)world).moonrise$getEntityTickingChunks();
++        final ca.spottedleaf.moonrise.common.list.ReferenceList<net.minecraft.world.level.chunk.LevelChunk> entityTickingChunks = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) world).moonrise$getEntityTickingChunks();
+ 
+         // note: we can use the backing array here because:
+         // 1. we do not care about new additions
+@@ -177,7 +183,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+ 
+             // call mid-tick tasks for chunk system
+             if ((i & 7) == 0) {
+-                ((ca.spottedleaf.moonrise.patches.chunk_system.server.ChunkSystemMinecraftServer)this.level.getServer()).moonrise$executeMidTickTasks();
++                ((ca.spottedleaf.moonrise.patches.chunk_system.server.ChunkSystemMinecraftServer) this.level.getServer()).moonrise$executeMidTickTasks();
+                 continue;
+             }
+         }
+@@ -207,7 +213,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         try {
+             FileUtil.createDirectoriesSafe(path);
+         } catch (IOException var15) {
+-            LOGGER.error("Failed to create dimension data storage directory", (Throwable)var15);
++            LOGGER.error("Failed to create dimension data storage directory", (Throwable) var15);
+         }
+ 
+         this.dataStorage = new DimensionDataStorage(new SavedData.Context(level), path, fixerUpper, level.registryAccess());
+@@ -343,7 +349,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+             return ret;
+         }
+ 
+-        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder holder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler()
++        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder holder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler()
+             .chunkHolderManager.getChunkHolder(chunkX, chunkZ);
+         if (holder == null) {
+             return ret;
+@@ -369,7 +375,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+             chunkFutureMainThread = CompletableFuture.<CompletableFuture<ChunkResult<ChunkAccess>>>supplyAsync(
+                     () -> this.getChunkFutureMainThread(x, z, chunkStatus, requireChunk), this.mainThreadProcessor
+                 )
+-                .thenCompose(future -> (CompletionStage<ChunkResult<ChunkAccess>>)future);
++                .thenCompose(future -> (CompletionStage<ChunkResult<ChunkAccess>>) future);
+         }
+ 
+         return chunkFutureMainThread;
+@@ -380,7 +386,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.level, x, z, "Scheduling chunk load off-main");
+ 
+         final int minLevel = ChunkLevel.byStatus(chunkStatus);
+-        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder chunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(x, z);
++        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder chunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(x, z);
+ 
+         final boolean needsFullScheduling = chunkStatus == ChunkStatus.FULL && (chunkHolder == null || !chunkHolder.getChunkStatus().isOrAfter(FullChunkStatus.FULL));
+ 
+@@ -400,7 +406,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+                 }
+             };
+ 
+-            ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().scheduleChunkLoad(
++            ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().scheduleChunkLoad(
+                 x, z, chunkStatus, true,
+                 ca.spottedleaf.concurrentutil.util.Priority.HIGHER,
+                 complete
+@@ -423,7 +429,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+     @Override
+     public LightChunk getChunkForLighting(int chunkX, int chunkZ) {
+         // Paper start - rewrite chunk system
+-        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder newChunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(chunkX, chunkZ);
++        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder newChunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(chunkX, chunkZ);
+         if (newChunkHolder == null) {
+             return null;
+         }
+@@ -441,12 +447,12 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+     }
+ 
+     public boolean runDistanceManagerUpdates() {
+-        return ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.processTicketUpdates(); // Paper - rewrite chunk system
++        return ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.processTicketUpdates(); // Paper - rewrite chunk system
+     }
+ 
+     public boolean isPositionTicking(long chunkPos) {
+         // Paper start - rewrite chunk system
+-        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder newChunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(chunkPos);
++        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder newChunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(chunkPos);
+         return newChunkHolder != null && newChunkHolder.isTickingReady();
+         // Paper end - rewrite chunk system
+     }
+@@ -466,7 +472,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         // CraftBukkit end
+         // Paper - rewrite chunk system
+         this.dataStorage.close();
+-        ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.close(save, true); // Paper - rewrite chunk system
++        ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.close(save, true); // Paper - rewrite chunk system
+     }
+ 
+     // CraftBukkit start - modelled on below
+@@ -495,7 +501,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         this.runDistanceManagerUpdates();
+         profilerFiller.popPush("chunks");
+         if (tickChunks) {
+-            ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getPlayerChunkLoader().tick(); // Paper - rewrite chunk system
++            ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getPlayerChunkLoader().tick(); // Paper - rewrite chunk system
+             this.tickChunks();
+             this.chunkMap.tick();
+         }
+@@ -538,7 +544,23 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         profiler.pop();
+     }
+ 
++    // MoraPaper - Only do chunk mob spawning each 5 ticks instead of every tick
++    private final static int SPAWN_UPDATE_INTERVAL = 5;
++
++    // MoraPaper - The last time we ticked mob spawning
++    private int ticksSinceLastSpawnUpdate = 0;
++
+     private void tickChunks(ProfilerFiller profiler, long timeInhabited) {
++        ticksSinceLastSpawnUpdate++;
++
++        // MoraPaper - Tick without the mob spawning between the interval
++        if (ticksSinceLastSpawnUpdate <= SPAWN_UPDATE_INTERVAL) {
++            iterateTickingChunksFaster();
++            return;
++        }
++
++        ticksSinceLastSpawnUpdate = 0;
++
+         profiler.popPush("naturalSpawnCount");
+         int naturalSpawnChunkCount = this.distanceManager.getNaturalSpawnChunkCount();
+         // Paper start - Optional per player mob spawns
+@@ -591,7 +613,8 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+             profiler.popPush("shuffleSpawningChunks");
+             // Paper start - chunk tick iteration optimisation
+             this.shuffleRandom.setSeed(this.level.random.nextLong());
+-            if (!this.level.paperConfig().entities.spawning.perPlayerMobSpawns) Util.shuffle(list, this.shuffleRandom); // Paper - Optional per player mob spawns; do not need this when per-player is enabled
++            if (!this.level.paperConfig().entities.spawning.perPlayerMobSpawns)
++                Util.shuffle(list, this.shuffleRandom); // Paper - Optional per player mob spawns; do not need this when per-player is enabled
+             // Paper end - chunk tick iteration optimisation
+             profiler.popPush("tickSpawningChunks");
+ 
+@@ -619,12 +642,21 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
          }
  
          if (!spawnCategories.isEmpty()) {
