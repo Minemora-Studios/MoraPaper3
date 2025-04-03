@@ -576,6 +576,18 @@ index a927c2790c8ab9ccaa7161b970e10b0b44817dd8..22d369538f27d055d2adee72536869ee
      }
  
      public boolean hasTasks() {
+diff --git a/net/minecraft/world/entity/monster/Monster.java b/net/minecraft/world/entity/monster/Monster.java
+index 5ef9566b16a4d0300ee45a993c46e734db156416..6562b362f62f362b6faf9f9d1c7d0b6576a217f7 100644
+--- a/net/minecraft/world/entity/monster/Monster.java
++++ b/net/minecraft/world/entity/monster/Monster.java
+@@ -40,6 +40,7 @@ public abstract class Monster extends PathfinderMob implements Enemy {
+ 
+     @Override
+     public void aiStep() {
++        if (nearestPlayerData.distanceSqr > distanceSqrToDisableAi) return;
+         this.updateSwingTime();
+         this.updateNoActionTime();
+         super.aiStep();
 diff --git a/net/minecraft/world/entity/npc/Villager.java b/net/minecraft/world/entity/npc/Villager.java
 index e0e0d2ea7fc60e3142c675404d152eca60263240..6d90ff8363613f5d4be4b5d2aee2b0effb72d02d 100644
 --- a/net/minecraft/world/entity/npc/Villager.java
