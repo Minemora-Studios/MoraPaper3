@@ -138,7 +138,7 @@ index 0d8aefe8c886eaa4c33cbab53b0ad1c016f0531f..05c0d2b308b43b8b50eb126509607df3
              org.spigotmc.AsyncCatcher.catchOp("player tracker update"); // Spigot
              if (player != this.entity) {
 diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
-index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..86f61ad65097cbf37c217e6b60342ac0b2d5eb13 100644
+index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..08cc07b2ba69f1a75df5081dcc6904215ec79aef 100644
 --- a/net/minecraft/server/level/ServerChunkCache.java
 +++ b/net/minecraft/server/level/ServerChunkCache.java
 @@ -79,9 +79,11 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
@@ -339,7 +339,7 @@ index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..86f61ad65097cbf37c217e6b60342ac0
      }
  
 +    // MoraPaper Start - Limit natural spawn radius
-+    private boolean isInNoNaturalSpawnRadius(ChunkPos pos) {
++    public static boolean isInNoNaturalSpawnRadius(ChunkPos pos) {
 +        int radius = 10; //TODO from config
 +        int x = pos.x;
 +        int z = pos.z;
@@ -351,7 +351,7 @@ index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..86f61ad65097cbf37c217e6b60342ac0
          // Paper start - rewrite chunk system
          // note: bypass currentlyLoaded from getChunkNow
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..7972494411665dbb750729dc727c5175753e6a13 100644
+index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..41fdce164af8c82b9fd37bf129ce714480f690ce 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -175,7 +175,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
@@ -416,7 +416,7 @@ index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..7972494411665dbb750729dc727c5175
      }
  
      public void tickThunder(LevelChunk chunk) {
-@@ -937,8 +937,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -937,15 +937,14 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
          boolean isRaining = this.isRaining();
          int minBlockX = pos.getMinBlockX();
          int minBlockZ = pos.getMinBlockZ();
@@ -425,7 +425,16 @@ index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..7972494411665dbb750729dc727c5175
          if (!this.paperConfig().environment.disableThunder && isRaining && this.isThundering() && this.spigotConfig.thunderChance > 0 && this.random.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot // Paper - Option to disable thunder
              BlockPos blockPos = this.findLightningTargetAround(this.getBlockRandomPos(minBlockX, 0, minBlockZ, 15));
              if (this.isRainingAt(blockPos)) {
-@@ -964,8 +962,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+                 DifficultyInstance currentDifficultyAt = this.getCurrentDifficultyAt(blockPos);
+                 boolean flag = this.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)
+                     && this.random.nextDouble() < currentDifficultyAt.getEffectiveDifficulty() * this.paperConfig().entities.spawning.skeletonHorseThunderSpawnChance.or(0.01) // Paper - Configurable spawn chances for skeleton horses
+-                    && !this.getBlockState(blockPos.below()).is(Blocks.LIGHTNING_ROD);
++                    && !this.getBlockState(blockPos.below()).is(Blocks.LIGHTNING_ROD)
++                    && !ServerChunkCache.isInNoNaturalSpawnRadius(pos);
+                 if (flag) {
+                     SkeletonHorse skeletonHorse = EntityType.SKELETON_HORSE.create(this, EntitySpawnReason.EVENT);
+                     if (skeletonHorse != null) {
+@@ -964,8 +963,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
                  }
              }
          }
@@ -434,7 +443,7 @@ index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..7972494411665dbb750729dc727c5175
      }
  
      @VisibleForTesting
-@@ -1259,17 +1255,13 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -1259,17 +1256,13 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
              }
              // Paper end - log detailed entity tick information
          entity.setOldPosAndRot();
@@ -452,7 +461,7 @@ index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..7972494411665dbb750729dc727c5175
  
          for (Entity entity1 : entity.getPassengers()) {
              this.tickPassenger(entity, entity1, isActive); // Paper - EAR 2
-@@ -1290,9 +1282,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -1290,9 +1283,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
              passengerEntity.setOldPosAndRot();
              passengerEntity.tickCount++;
              passengerEntity.totalEntityAge++; // Paper - age-like counter for all entities
@@ -462,7 +471,7 @@ index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..7972494411665dbb750729dc727c5175
              // Paper start - EAR 2
              if (isActive) {
              passengerEntity.rideTick();
-@@ -1304,7 +1293,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -1304,7 +1294,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
                  ridingEntity.positionRider(passengerEntity);
              }
              // Paper end - EAR 2
