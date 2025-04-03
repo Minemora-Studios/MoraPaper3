@@ -4,6 +4,30 @@ Date: Wed, 2 Apr 2025 22:23:25 -0500
 Subject: [PATCH] Minemora Patch
 
 
+diff --git a/net/minecraft/network/chat/OutgoingChatMessage.java b/net/minecraft/network/chat/OutgoingChatMessage.java
+index 4635182c73f28f63ba84982cb6bcb422221b738e..eb40e9b8051c7e159146104383a747d1c3c26566 100644
+--- a/net/minecraft/network/chat/OutgoingChatMessage.java
++++ b/net/minecraft/network/chat/OutgoingChatMessage.java
+@@ -26,6 +26,9 @@ public interface OutgoingChatMessage {
+             this.sendToPlayer(player, filtered, boundType, null);
+         }
+         public void sendToPlayer(ServerPlayer player, boolean filtered, ChatType.Bound boundType, @javax.annotation.Nullable Component unsigned) {
++            // MoraPaper
++            if (player.chatDisabled) return;
++
+             player.connection.sendDisguisedChatMessage(unsigned != null ? unsigned : this.content, boundType);
+             // Paper end
+         }
+@@ -43,6 +46,9 @@ public interface OutgoingChatMessage {
+             this.sendToPlayer(player, filtered, boundType, null);
+         }
+         public void sendToPlayer(ServerPlayer player, boolean filtered, ChatType.Bound boundType, @javax.annotation.Nullable Component unsigned) {
++            // MoraPaper
++            if (player.chatDisabled) return;
++
+             // Paper end
+             PlayerChatMessage playerChatMessage = this.message.filter(filtered);
+             playerChatMessage = unsigned != null ? playerChatMessage.withUnsignedContent(unsigned) : playerChatMessage; // Paper
 diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
 index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..7fcacaf184fe9a4e299fa82a4cb1bd57570e0dea 100644
 --- a/net/minecraft/server/level/ServerChunkCache.java
@@ -31,3 +55,45 @@ index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..7fcacaf184fe9a4e299fa82a4cb1bd57
      private void getFullChunk(long chunkPos, Consumer<LevelChunk> fullChunkGetter) {
          // Paper start - rewrite chunk system
          // note: bypass currentlyLoaded from getChunkNow
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 6457f41fe7882d8c532e16851400c37a67e8cd52..2b869da876c89a934541663b8cda775e14d6d99e 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -2165,7 +2165,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.sendSystemMessage(mesage, false);
+     }
+ 
++    // MoraPaper - Completely disable chat
++    public boolean chatDisabled = false;
++
+     public void sendSystemMessage(Component message, boolean overlay) {
++        if (chatDisabled) return;
++
+         if (this.acceptsSystemMessages(overlay)) {
+             this.connection
+                 .send(
+@@ -2193,6 +2198,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.sendChatMessage(message, filtered, boundType, null);
+     }
+     public void sendChatMessage(OutgoingChatMessage message, boolean filtered, ChatType.Bound boundType, @Nullable Component unsigned) {
++        // MoraPaper
++        if (chatDisabled) return;
++
+         // Paper end
+         if (this.acceptsChatMessages()) {
+             message.sendToPlayer(this, filtered, boundType, unsigned); // Paper
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 5e921c490814be31fc2843327c0e2cc76bda6620..dcd94778b207b3283034ae24f89612f8d5f73e98 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2588,6 +2588,10 @@ public class ServerGamePacketListenerImpl
+             return;
+         }
+         // CraftBukkit end
++
++        // MoraPaper
++        if (player.chatDisabled) return;
++
+         // Paper start - Ensure that client receives chat packets in the same order that we add into the message signature cache
+         synchronized (this.messageSignatureCache) {
+         this.send(

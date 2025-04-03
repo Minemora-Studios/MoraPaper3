@@ -3894,4 +3894,13 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      * @param score New death screen score of player
      */
     void setDeathScreenScore(int score);
+
+    /**
+     * If the player should receive or ignore all the messages sent
+     *
+     * @param disabled If chat should be disabled
+     * @author MoraPaper
+     */
+    void setChatDisabled(boolean disabled);
+
 }
