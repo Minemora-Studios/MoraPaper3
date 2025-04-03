@@ -53,6 +53,42 @@ index 4635182c73f28f63ba84982cb6bcb422221b738e..eb40e9b8051c7e159146104383a747d1
              // Paper end
              PlayerChatMessage playerChatMessage = this.message.filter(filtered);
              playerChatMessage = unsigned != null ? playerChatMessage.withUnsignedContent(unsigned) : playerChatMessage; // Paper
+diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
+index 0d8aefe8c886eaa4c33cbab53b0ad1c016f0531f..05c0d2b308b43b8b50eb126509607df3394f561e 100644
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -1176,11 +1176,16 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             }
+ 
+             if (lastChunkUpdate != currChunkUpdate || lastTrackedChunk != chunk) {
++                // MoraPaper - Iterate in the set itself not by creating a completely new arraylist
++                final java.util.Iterator<net.minecraft.server.network.ServerPlayerConnection> seenByIterator = this.seenBy.iterator();
++
+                 // need to purge any players possible not in the chunk list
+-                for (final ServerPlayerConnection conn : new java.util.ArrayList<>(this.seenBy)) {
++                while (seenByIterator.hasNext()) {
++                    final ServerPlayerConnection conn = seenByIterator.next();
+                     final ServerPlayer player = conn.getPlayer();
+                     if (!players.contains(player)) {
+-                        this.removePlayer(player);
++                        seenByIterator.remove();
++                        this.forceRemovePlayerPairing(player);
+                     }
+                 }
+             }
+@@ -1278,6 +1283,12 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             }
+         }
+ 
++        // MoraSpigot - Remove the player without removing or checking for the seenBy, to prevent CME
++        // when the player is removed while in a loop
++        public void forceRemovePlayerPairing(ServerPlayer player) {
++            this.serverEntity.removePairing(player);
++        }
++
+         public void updatePlayer(ServerPlayer player) {
+             org.spigotmc.AsyncCatcher.catchOp("player tracker update"); // Spigot
+             if (player != this.entity) {
 diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
 index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..7fcacaf184fe9a4e299fa82a4cb1bd57570e0dea 100644
 --- a/net/minecraft/server/level/ServerChunkCache.java
@@ -122,3 +158,16 @@ index 5e921c490814be31fc2843327c0e2cc76bda6620..dcd94778b207b3283034ae24f89612f8
          // Paper start - Ensure that client receives chat packets in the same order that we add into the message signature cache
          synchronized (this.messageSignatureCache) {
          this.send(
+diff --git a/net/minecraft/world/entity/ai/goal/GoalSelector.java b/net/minecraft/world/entity/ai/goal/GoalSelector.java
+index a927c2790c8ab9ccaa7161b970e10b0b44817dd8..22d369538f27d055d2adee72536869ee2804adf0 100644
+--- a/net/minecraft/world/entity/ai/goal/GoalSelector.java
++++ b/net/minecraft/world/entity/ai/goal/GoalSelector.java
+@@ -40,7 +40,7 @@ public class GoalSelector {
+     // Paper start - EAR 2
+     public boolean inactiveTick() {
+         this.curRate++;
+-        return this.curRate % 3 == 0; // TODO newGoalRate was already unused in 1.20.4, check if this is correct
++        return this.curRate % 40 == 0; // MoraPaper - Increase curRate from 3 to 40
+     }
+ 
+     public boolean hasTasks() {
