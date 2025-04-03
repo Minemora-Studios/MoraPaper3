@@ -3593,4 +3593,10 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
     public void setSimplifyContainerDesyncCheck(final boolean simplifyContainerDesyncCheck) {
         this.simplifyContainerDesyncCheck = simplifyContainerDesyncCheck;
     }
+
+    // MoraPaper
+    public void setChatDisabled(final boolean value) {
+        getHandle().chatDisabled = value;
+    }
+
 }
