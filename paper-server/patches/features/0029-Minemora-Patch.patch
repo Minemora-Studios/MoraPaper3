@@ -53,6 +53,41 @@ index 4635182c73f28f63ba84982cb6bcb422221b738e..eb40e9b8051c7e159146104383a747d1
              // Paper end
              PlayerChatMessage playerChatMessage = this.message.filter(filtered);
              playerChatMessage = unsigned != null ? playerChatMessage.withUnsignedContent(unsigned) : playerChatMessage; // Paper
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index f1373fd5fdebb9f4600ba7f32a5df6188de3a0e9..d49597655c93e86d4dc44eb09fdb118f3b9d3b1f 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1656,18 +1656,18 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         this.getPlayerList().getPlayers().forEach(serverPlayer1 -> serverPlayer1.connection.suspendFlushing());
+         this.server.getScheduler().mainThreadHeartbeat(); // CraftBukkit
+         // Paper start - Folia scheduler API
+-        ((io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler) org.bukkit.Bukkit.getGlobalRegionScheduler()).tick();
+-        getAllLevels().forEach(level -> {
+-            for (final net.minecraft.world.entity.Entity entity : level.getEntities().getAll()) {
+-                if (entity.isRemoved()) {
+-                    continue;
+-                }
+-                final org.bukkit.craftbukkit.entity.CraftEntity bukkit = entity.getBukkitEntityRaw();
+-                if (bukkit != null) {
+-                    bukkit.taskScheduler.executeTick();
+-                }
+-            }
+-        });
++        // ((io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler) org.bukkit.Bukkit.getGlobalRegionScheduler()).tick();
++        // getAllLevels().forEach(level -> {
++        //     for (final net.minecraft.world.entity.Entity entity : level.getEntities().getAll()) {
++        //         if (entity.isRemoved()) {
++        //             continue;
++        //         }
++        //         final org.bukkit.craftbukkit.entity.CraftEntity bukkit = entity.getBukkitEntityRaw();
++        //         if (bukkit != null) {
++        //             bukkit.taskScheduler.executeTick();
++        //         }
++        //     }
++        // });
+         // Paper end - Folia scheduler API
+         io.papermc.paper.adventure.providers.ClickCallbackProviderImpl.CALLBACK_MANAGER.handleQueue(this.tickCount); // Paper
+         profilerFiller.push("commandFunctions");
 diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
 index 0d8aefe8c886eaa4c33cbab53b0ad1c016f0531f..05c0d2b308b43b8b50eb126509607df3394f561e 100644
 --- a/net/minecraft/server/level/ChunkMap.java
