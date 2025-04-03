@@ -541,6 +541,24 @@ index a927c2790c8ab9ccaa7161b970e10b0b44817dd8..22d369538f27d055d2adee72536869ee
      }
  
      public boolean hasTasks() {
+diff --git a/net/minecraft/world/entity/npc/Villager.java b/net/minecraft/world/entity/npc/Villager.java
+index e0e0d2ea7fc60e3142c675404d152eca60263240..6d90ff8363613f5d4be4b5d2aee2b0effb72d02d 100644
+--- a/net/minecraft/world/entity/npc/Villager.java
++++ b/net/minecraft/world/entity/npc/Villager.java
+@@ -292,7 +292,12 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+         // Paper start - EAR 2
+         this.customServerAiStep(level, false);
+     }
+-    protected void customServerAiStep(ServerLevel level, final boolean inactive) {
++    protected void customServerAiStep(ServerLevel level, boolean inactive) {
++        // MoraSpigot - Mark inactive if the player is too far away
++        if(nearestPlayerData.distanceSqr > distanceSqrToDisableAi) {
++            inactive = true;
++        }
++
+         // Paper end - EAR 2
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("villagerBrain");
 diff --git a/net/minecraft/world/level/entity/EntityTickList.java b/net/minecraft/world/level/entity/EntityTickList.java
 index 423779a2b690f387a4f0bd07b97b50e0baefda76..33cdab242a3d58c6cbe4ede3497f1864f05bcf7e 100644
 --- a/net/minecraft/world/level/entity/EntityTickList.java
