@@ -303,7 +303,7 @@ index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..86f61ad65097cbf37c217e6b60342ac0
          // Paper start - rewrite chunk system
          // note: bypass currentlyLoaded from getChunkNow
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..eab6ecaa7561779a52c1fdb19fa0a9ec2be9aecc 100644
+index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..7972494411665dbb750729dc727c5175753e6a13 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -175,7 +175,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
@@ -336,6 +336,92 @@ index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..eab6ecaa7561779a52c1fdb19fa0a9ec
      }
  
      // Paper start
+@@ -832,9 +839,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+         if (this.tickTime) {
+             long l = this.levelData.getGameTime() + 1L;
+             this.serverLevelData.setGameTime(l);
+-            Profiler.get().push("scheduledFunctions");
+             this.serverLevelData.getScheduledEvents().tick(this.server, l);
+-            Profiler.get().pop();
+             if (this.serverLevelData.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)) {
+                 this.setDayTime(this.levelData.getDayTime() + 1L);
+             }
+@@ -913,8 +918,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+         ChunkPos pos = chunk.getPos();
+         int minBlockX = pos.getMinBlockX();
+         int minBlockZ = pos.getMinBlockZ();
+-        ProfilerFiller profilerFiller = Profiler.get();
+-        profilerFiller.push("iceandsnow");
+ 
+         if (!this.paperConfig().environment.disableIceAndSnow) { // Paper - Option to disable ice and snow
+         for (int i = 0; i < randomTickSpeed; i++) {
+@@ -924,12 +927,9 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+         }
+         } // Paper - Option to disable ice and snow
+ 
+-        profilerFiller.popPush("tickBlocks");
+         if (randomTickSpeed > 0) {
+             this.optimiseRandomTick(chunk, randomTickSpeed); // Paper - optimise random ticking
+         }
+-
+-        profilerFiller.pop();
+     }
+ 
+     public void tickThunder(LevelChunk chunk) {
+@@ -937,8 +937,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+         boolean isRaining = this.isRaining();
+         int minBlockX = pos.getMinBlockX();
+         int minBlockZ = pos.getMinBlockZ();
+-        ProfilerFiller profilerFiller = Profiler.get();
+-        profilerFiller.push("thunder");
+         if (!this.paperConfig().environment.disableThunder && isRaining && this.isThundering() && this.spigotConfig.thunderChance > 0 && this.random.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot // Paper - Option to disable thunder
+             BlockPos blockPos = this.findLightningTargetAround(this.getBlockRandomPos(minBlockX, 0, minBlockZ, 15));
+             if (this.isRainingAt(blockPos)) {
+@@ -964,8 +962,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+                 }
+             }
+         }
+-
+-        profilerFiller.pop();
+     }
+ 
+     @VisibleForTesting
+@@ -1259,17 +1255,13 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+             }
+             // Paper end - log detailed entity tick information
+         entity.setOldPosAndRot();
+-        ProfilerFiller profilerFiller = Profiler.get();
+         entity.tickCount++;
+         entity.totalEntityAge++; // Paper - age-like counter for all entities
+-        profilerFiller.push(() -> BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString());
+-        profilerFiller.incrementCounter("tickNonPassenger");
+         final boolean isActive = io.papermc.paper.entity.activation.ActivationRange.checkIfActive(entity); // Paper - EAR 2
+         if (isActive) { // Paper - EAR 2
+         entity.tick();
+         entity.postTick(); // CraftBukkit
+         } else {entity.inactiveTick();} // Paper - EAR 2
+-        profilerFiller.pop();
+ 
+         for (Entity entity1 : entity.getPassengers()) {
+             this.tickPassenger(entity, entity1, isActive); // Paper - EAR 2
+@@ -1290,9 +1282,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+             passengerEntity.setOldPosAndRot();
+             passengerEntity.tickCount++;
+             passengerEntity.totalEntityAge++; // Paper - age-like counter for all entities
+-            ProfilerFiller profilerFiller = Profiler.get();
+-            profilerFiller.push(() -> BuiltInRegistries.ENTITY_TYPE.getKey(passengerEntity.getType()).toString());
+-            profilerFiller.incrementCounter("tickPassenger");
+             // Paper start - EAR 2
+             if (isActive) {
+             passengerEntity.rideTick();
+@@ -1304,7 +1293,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+                 ridingEntity.positionRider(passengerEntity);
+             }
+             // Paper end - EAR 2
+-            profilerFiller.pop();
+ 
+             for (Entity entity : passengerEntity.getPassengers()) {
+                 this.tickPassenger(passengerEntity, entity, isActive); // Paper - EAR 2
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
 index 6457f41fe7882d8c532e16851400c37a67e8cd52..2b869da876c89a934541663b8cda775e14d6d99e 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
