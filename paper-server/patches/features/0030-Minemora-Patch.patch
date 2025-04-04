@@ -539,10 +539,10 @@ index 6457f41fe7882d8c532e16851400c37a67e8cd52..197a73cafb820372db1d968eb1c78a96
          if (this.acceptsChatMessages()) {
              message.sendToPlayer(this, filtered, boundType, unsigned); // Paper
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 5e921c490814be31fc2843327c0e2cc76bda6620..dcd94778b207b3283034ae24f89612f8d5f73e98 100644
+index f49a2c18ec20a7181951389066b7d062b48d43fa..f1f33d3d1c8d6d09711ff153f74b3e90224bdda5 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2588,6 +2588,10 @@ public class ServerGamePacketListenerImpl
+@@ -2658,6 +2658,10 @@ public class ServerGamePacketListenerImpl
              return;
          }
          // CraftBukkit end
