@@ -553,6 +553,19 @@ index f49a2c18ec20a7181951389066b7d062b48d43fa..f1f33d3d1c8d6d09711ff153f74b3e90
          // Paper start - Ensure that client receives chat packets in the same order that we add into the message signature cache
          synchronized (this.messageSignatureCache) {
          this.send(
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index 6e22aedd36add8e39a82248193f324b36dfa27b5..2aaee8f8c03c624f7e19f4a53f4732b5dd7d96ef 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -275,7 +275,7 @@ public abstract class PlayerList {
+                 !_boolean,
+                 _boolean2,
+                 player.createCommonSpawnInfo(serverLevel),
+-                this.server.enforceSecureProfile()
++                true
+             )
+         );
+         player.getBukkitEntity().sendSupportedChannels(); // CraftBukkit
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
 index 7ba7a00b8dee651ca7a3cab5b64b4ae11aa66da9..d52abec9209f9d3a0f881fe4f6c760183b3bfa93 100644
 --- a/net/minecraft/world/entity/LivingEntity.java
