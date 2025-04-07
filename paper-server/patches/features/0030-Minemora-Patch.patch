@@ -711,6 +711,40 @@ index e0e0d2ea7fc60e3142c675404d152eca60263240..6d90ff8363613f5d4be4b5d2aee2b0ef
          // Paper end - EAR 2
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("villagerBrain");
+diff --git a/net/minecraft/world/entity/player/Inventory.java b/net/minecraft/world/entity/player/Inventory.java
+index dd406c5becacbc2d05b062726a8af88a1d6faba9..55b85faac280c86d9ba5cf4968062cbfc11abbe9 100644
+--- a/net/minecraft/world/entity/player/Inventory.java
++++ b/net/minecraft/world/entity/player/Inventory.java
+@@ -30,20 +30,17 @@ public class Inventory implements Container, Nameable {
+     public static final int SELECTION_SIZE = 9;
+     public static final int SLOT_OFFHAND = 40;
+     public static final int NOT_FOUND_INDEX = -1;
++
+     public static final Int2ObjectMap<EquipmentSlot> EQUIPMENT_SLOT_MAPPING = new Int2ObjectArrayMap<>(
+-        Map.of(
+-            EquipmentSlot.FEET.getIndex(36),
+-            EquipmentSlot.FEET,
+-            EquipmentSlot.LEGS.getIndex(36),
+-            EquipmentSlot.LEGS,
+-            EquipmentSlot.CHEST.getIndex(36),
+-            EquipmentSlot.CHEST,
+-            EquipmentSlot.HEAD.getIndex(36),
+-            EquipmentSlot.HEAD,
+-            40,
+-            EquipmentSlot.OFFHAND
+-        )
++        new java.util.LinkedHashMap<>() {{
++                    put(EquipmentSlot.FEET.getIndex(36), EquipmentSlot.FEET);
++                    put(EquipmentSlot.LEGS.getIndex(36), EquipmentSlot.LEGS);
++                    put(EquipmentSlot.CHEST.getIndex(36), EquipmentSlot.CHEST);
++                    put(EquipmentSlot.HEAD.getIndex(36), EquipmentSlot.HEAD);
++                    put(40, EquipmentSlot.OFFHAND);
++        }}
+     );
++
+     private final NonNullList<ItemStack> items = NonNullList.withSize(36, ItemStack.EMPTY);
+     private int selected;
+     public final Player player;
 diff --git a/net/minecraft/world/level/entity/EntityTickList.java b/net/minecraft/world/level/entity/EntityTickList.java
 index 423779a2b690f387a4f0bd07b97b50e0baefda76..33cdab242a3d58c6cbe4ede3497f1864f05bcf7e 100644
 --- a/net/minecraft/world/level/entity/EntityTickList.java
