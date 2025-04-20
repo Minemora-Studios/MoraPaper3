@@ -350,8 +350,36 @@ index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..08cc07b2ba69f1a75df5081dcc690421
      private void getFullChunk(long chunkPos, Consumer<LevelChunk> fullChunkGetter) {
          // Paper start - rewrite chunk system
          // note: bypass currentlyLoaded from getChunkNow
+diff --git a/net/minecraft/server/level/ServerEntity.java b/net/minecraft/server/level/ServerEntity.java
+index 257ecbcf7d463eefb951867a5426eaf24e356305..31eb6ecb63e204a74262109a51a6b4f21edce388 100644
+--- a/net/minecraft/server/level/ServerEntity.java
++++ b/net/minecraft/server/level/ServerEntity.java
+@@ -119,7 +119,8 @@ public class ServerEntity {
+         List<Entity> passengers = this.entity.getPassengers();
+         if (!passengers.equals(this.lastPassengers)) {
+             List<UUID> list = this.mountedOrDismounted(passengers).map(Entity::getUUID).toList();
+-            this.broadcastWithIgnore.accept(new ClientboundSetPassengersPacket(this.entity), list);
++            // MoraPaper - Send set passengers to the vehicle entity too (if player), ignoring the passengers that have not been updated
++            this.broadcastAndSendWithIgnore(new ClientboundSetPassengersPacket(this.entity), list);
+             this.lastPassengers = passengers;
+         }
+ 
+@@ -436,4 +437,13 @@ public class ServerEntity {
+             ((ServerPlayer)this.entity).connection.send(packet);
+         }
+     }
++
++    // MoraPaper - Broadcast and send with ignore
++    private void broadcastAndSendWithIgnore(Packet<?> packet, List<UUID> ignore) {
++        this.broadcastWithIgnore.accept(packet, ignore);
++        if (this.entity instanceof ServerPlayer) {
++            ((ServerPlayer)this.entity).connection.send(packet);
++        }
++    }
++
+ }
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..41fdce164af8c82b9fd37bf129ce714480f690ce 100644
+index 3c8a1fe9831d6cf9e622e3ac2aede4e5c657c18f..2cdb53027f0e87a616747ea53a053fce1b17f4cf 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -175,7 +175,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
@@ -480,7 +508,7 @@ index d50d2928ad9f8b34a14621b1fe5c188547e04bd1..41fdce164af8c82b9fd37bf129ce7144
              for (Entity entity : passengerEntity.getPassengers()) {
                  this.tickPassenger(passengerEntity, entity, isActive); // Paper - EAR 2
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 6457f41fe7882d8c532e16851400c37a67e8cd52..197a73cafb820372db1d968eb1c78a966cf9a32c 100644
+index 568b6e60482c61363b6052c73fbc26a2ba19d5df..a639b767751b52d0a17d4ccd7d75ab8eb9eae6a3 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -212,6 +212,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
@@ -515,7 +543,7 @@ index 6457f41fe7882d8c532e16851400c37a67e8cd52..197a73cafb820372db1d968eb1c78a96
      @Override
      public BlockPos adjustSpawnLocation(ServerLevel level, BlockPos pos) {
          AABB aabb = this.getDimensions(Pose.STANDING).makeBoundingBox(Vec3.ZERO);
-@@ -2165,7 +2183,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2166,7 +2184,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendSystemMessage(mesage, false);
      }
  
@@ -528,7 +556,7 @@ index 6457f41fe7882d8c532e16851400c37a67e8cd52..197a73cafb820372db1d968eb1c78a96
          if (this.acceptsSystemMessages(overlay)) {
              this.connection
                  .send(
-@@ -2193,6 +2216,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2194,6 +2217,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendChatMessage(message, filtered, boundType, null);
      }
      public void sendChatMessage(OutgoingChatMessage message, boolean filtered, ChatType.Bound boundType, @Nullable Component unsigned) {
@@ -591,7 +619,7 @@ index 6e22aedd36add8e39a82248193f324b36dfa27b5..2aaee8f8c03c624f7e19f4a53f4732b5
          );
          player.getBukkitEntity().sendSupportedChannels(); // CraftBukkit
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
-index 7ba7a00b8dee651ca7a3cab5b64b4ae11aa66da9..d52abec9209f9d3a0f881fe4f6c760183b3bfa93 100644
+index 3e8f4f3c3d43c6875108295187023c48eece2788..376867f128aa75933f2d83190bc214e8904bc70a 100644
 --- a/net/minecraft/world/entity/LivingEntity.java
 +++ b/net/minecraft/world/entity/LivingEntity.java
 @@ -4577,4 +4577,9 @@ public abstract class LivingEntity extends Entity implements Attackable {
@@ -712,7 +740,7 @@ index e0e0d2ea7fc60e3142c675404d152eca60263240..6d90ff8363613f5d4be4b5d2aee2b0ef
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("villagerBrain");
 diff --git a/net/minecraft/world/entity/player/Inventory.java b/net/minecraft/world/entity/player/Inventory.java
-index dd406c5becacbc2d05b062726a8af88a1d6faba9..55b85faac280c86d9ba5cf4968062cbfc11abbe9 100644
+index d9cb4f0ed0c4f63362c837aeef3c4194911455c9..a7ea544697838886273161844753e148bce4a6ed 100644
 --- a/net/minecraft/world/entity/player/Inventory.java
 +++ b/net/minecraft/world/entity/player/Inventory.java
 @@ -30,20 +30,17 @@ public class Inventory implements Container, Nameable {
