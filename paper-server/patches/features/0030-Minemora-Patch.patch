@@ -773,6 +773,46 @@ index d9cb4f0ed0c4f63362c837aeef3c4194911455c9..a7ea544697838886273161844753e148
      private final NonNullList<ItemStack> items = NonNullList.withSize(36, ItemStack.EMPTY);
      private int selected;
      public final Player player;
+diff --git a/net/minecraft/world/entity/vehicle/NewMinecartBehavior.java b/net/minecraft/world/entity/vehicle/NewMinecartBehavior.java
+index 090b19752fbfc856d9fbf118510afc6cda2b9989..71486d7a2c7b7e775db283f937c9ffce1268d4db 100644
+--- a/net/minecraft/world/entity/vehicle/NewMinecartBehavior.java
++++ b/net/minecraft/world/entity/vehicle/NewMinecartBehavior.java
+@@ -367,6 +367,13 @@ public class NewMinecartBehavior extends MinecartBehavior {
+         if (this.minecart.getFirstPassenger() instanceof ServerPlayer serverPlayer) {
+             Vec3 lastClientMoveIntent = serverPlayer.getLastClientMoveIntent();
+             if (lastClientMoveIntent.lengthSqr() > 0.0) {
++                // MoraPaper Start - Steer minecart event
++                final org.bukkit.event.player.PlayerSteerMinecartEvent event = new org.bukkit.event.player.PlayerSteerMinecartEvent(serverPlayer.getBukkitEntity(), (org.bukkit.entity.Minecart) this.minecart.getBukkitEntity());
++                event.callEvent();
++
++                if (event.isCancelled()) return speed;
++                // MoraPaper End
++
+                 Vec3 vec3 = lastClientMoveIntent.normalize();
+                 double d = speed.horizontalDistanceSqr();
+                 if (vec3.lengthSqr() > 0.0 && d < 0.01) {
+diff --git a/net/minecraft/world/entity/vehicle/OldMinecartBehavior.java b/net/minecraft/world/entity/vehicle/OldMinecartBehavior.java
+index 0d09b0809e7b224538cf5cfac9e36ec5ba10b709..b953d6d8c66917eaa3ee5b580ca2aad71440dd59 100644
+--- a/net/minecraft/world/entity/vehicle/OldMinecartBehavior.java
++++ b/net/minecraft/world/entity/vehicle/OldMinecartBehavior.java
+@@ -162,6 +162,17 @@ public class OldMinecartBehavior extends MinecartBehavior {
+         Vec3 lastClientMoveIntent;
+         if (this.minecart.getFirstPassenger() instanceof ServerPlayer serverPlayer) {
+             lastClientMoveIntent = serverPlayer.getLastClientMoveIntent();
++
++            // MoraPaper Start - Steer minecart event
++            if (lastClientMoveIntent.x != 0 || lastClientMoveIntent.y != 0 || lastClientMoveIntent.z != 0) {
++                final org.bukkit.event.player.PlayerSteerMinecartEvent event = new org.bukkit.event.player.PlayerSteerMinecartEvent(serverPlayer.getBukkitEntity(), (org.bukkit.entity.Minecart) this.minecart.getBukkitEntity());
++                event.callEvent();
++
++                if (event.isCancelled()) {
++                    lastClientMoveIntent = net.minecraft.world.phys.Vec3.ZERO;
++                }
++            }
++            // MoraPaper End
+         } else {
+             lastClientMoveIntent = Vec3.ZERO;
+         }
 diff --git a/net/minecraft/world/level/entity/EntityTickList.java b/net/minecraft/world/level/entity/EntityTickList.java
 index 423779a2b690f387a4f0bd07b97b50e0baefda76..33cdab242a3d58c6cbe4ede3497f1864f05bcf7e 100644
 --- a/net/minecraft/world/level/entity/EntityTickList.java
