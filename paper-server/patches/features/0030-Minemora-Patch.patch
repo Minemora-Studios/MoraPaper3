@@ -351,35 +351,17 @@ index 59e8a5e1b35c81883c9b1ca00c6e55d77584d8cc..08cc07b2ba69f1a75df5081dcc690421
          // Paper start - rewrite chunk system
          // note: bypass currentlyLoaded from getChunkNow
 diff --git a/net/minecraft/server/level/ServerEntity.java b/net/minecraft/server/level/ServerEntity.java
-index 257ecbcf7d463eefb951867a5426eaf24e356305..31eb6ecb63e204a74262109a51a6b4f21edce388 100644
+index b118e91f1e0b5a8b8c0b2a4a32faabc5a34a5954..5b688083411513a8653f89459b1db3e1ad880fa5 100644
 --- a/net/minecraft/server/level/ServerEntity.java
 +++ b/net/minecraft/server/level/ServerEntity.java
-@@ -119,7 +119,8 @@ public class ServerEntity {
-         List<Entity> passengers = this.entity.getPassengers();
-         if (!passengers.equals(this.lastPassengers)) {
-             List<UUID> list = this.mountedOrDismounted(passengers).map(Entity::getUUID).toList();
--            this.broadcastWithIgnore.accept(new ClientboundSetPassengersPacket(this.entity), list);
-+            // MoraPaper - Send set passengers to the vehicle entity too (if player), ignoring the passengers that have not been updated
-+            this.broadcastAndSendWithIgnore(new ClientboundSetPassengersPacket(this.entity), list);
-             this.lastPassengers = passengers;
-         }
- 
-@@ -436,4 +437,13 @@ public class ServerEntity {
+@@ -441,4 +441,5 @@ public class ServerEntity {
              ((ServerPlayer)this.entity).connection.send(packet);
          }
      }
 +
-+    // MoraPaper - Broadcast and send with ignore
-+    private void broadcastAndSendWithIgnore(Packet<?> packet, List<UUID> ignore) {
-+        this.broadcastWithIgnore.accept(packet, ignore);
-+        if (this.entity instanceof ServerPlayer) {
-+            ((ServerPlayer)this.entity).connection.send(packet);
-+        }
-+    }
-+
  }
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 3c8a1fe9831d6cf9e622e3ac2aede4e5c657c18f..2cdb53027f0e87a616747ea53a053fce1b17f4cf 100644
+index bfbfbaa9660d21071c420b60b10be0a02a1bc87e..203aa2d26536a7b910bb232cdc8369cd5cf43d83 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -175,7 +175,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
@@ -508,10 +490,10 @@ index 3c8a1fe9831d6cf9e622e3ac2aede4e5c657c18f..2cdb53027f0e87a616747ea53a053fce
              for (Entity entity : passengerEntity.getPassengers()) {
                  this.tickPassenger(passengerEntity, entity, isActive); // Paper - EAR 2
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 568b6e60482c61363b6052c73fbc26a2ba19d5df..a639b767751b52d0a17d4ccd7d75ab8eb9eae6a3 100644
+index 3781d9cc174b7aecacb9b9855d52c7b1ff05835c..00b869d1775872df0a2adf33bdc2d6e59c6495f7 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -212,6 +212,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -211,6 +211,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
      public final ServerPlayerGameMode gameMode;
      private final PlayerAdvancements advancements;
      private final ServerStatsCounter stats;
@@ -519,7 +501,7 @@ index 568b6e60482c61363b6052c73fbc26a2ba19d5df..a639b767751b52d0a17d4ccd7d75ab8e
      private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
      private int lastRecordedFoodLevel = Integer.MIN_VALUE;
      private int lastRecordedAirLevel = Integer.MIN_VALUE;
-@@ -478,6 +479,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -470,6 +471,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.maxHealthCache = this.getMaxHealth();
      }
  
@@ -543,7 +525,7 @@ index 568b6e60482c61363b6052c73fbc26a2ba19d5df..a639b767751b52d0a17d4ccd7d75ab8e
      @Override
      public BlockPos adjustSpawnLocation(ServerLevel level, BlockPos pos) {
          AABB aabb = this.getDimensions(Pose.STANDING).makeBoundingBox(Vec3.ZERO);
-@@ -2166,7 +2184,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2164,7 +2182,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendSystemMessage(mesage, false);
      }
  
@@ -556,7 +538,7 @@ index 568b6e60482c61363b6052c73fbc26a2ba19d5df..a639b767751b52d0a17d4ccd7d75ab8e
          if (this.acceptsSystemMessages(overlay)) {
              this.connection
                  .send(
-@@ -2194,6 +2217,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2192,6 +2215,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendChatMessage(message, filtered, boundType, null);
      }
      public void sendChatMessage(OutgoingChatMessage message, boolean filtered, ChatType.Bound boundType, @Nullable Component unsigned) {
@@ -567,10 +549,10 @@ index 568b6e60482c61363b6052c73fbc26a2ba19d5df..a639b767751b52d0a17d4ccd7d75ab8e
          if (this.acceptsChatMessages()) {
              message.sendToPlayer(this, filtered, boundType, unsigned); // Paper
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index f49a2c18ec20a7181951389066b7d062b48d43fa..4c23e504301a413d9f25daec9bd5b8b8d2659590 100644
+index 9041830c19e2899479e1519488faba5c416ccd88..02a4044a3b23c1e2bc35f498b9ac36d10c18ce79 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2418,8 +2418,9 @@ public class ServerGamePacketListenerImpl
+@@ -2413,8 +2413,9 @@ public class ServerGamePacketListenerImpl
                  LastSeenMessages lastSeenMessages = this.lastSeenMessages.applyUpdate(update);
                  var10000 = Optional.of(lastSeenMessages);
              } catch (LastSeenMessagesValidator.ValidationException var5) {
@@ -582,7 +564,7 @@ index f49a2c18ec20a7181951389066b7d062b48d43fa..4c23e504301a413d9f25daec9bd5b8b8
                  return Optional.empty();
              }
  
-@@ -2521,8 +2522,9 @@ public class ServerGamePacketListenerImpl
+@@ -2516,8 +2517,9 @@ public class ServerGamePacketListenerImpl
              try {
                  this.lastSeenMessages.applyOffset(packet.offset());
              } catch (LastSeenMessagesValidator.ValidationException var5) {
@@ -594,7 +576,7 @@ index f49a2c18ec20a7181951389066b7d062b48d43fa..4c23e504301a413d9f25daec9bd5b8b8
              }
          }
      }
-@@ -2658,6 +2660,10 @@ public class ServerGamePacketListenerImpl
+@@ -2653,6 +2655,10 @@ public class ServerGamePacketListenerImpl
              return;
          }
          // CraftBukkit end
@@ -606,7 +588,7 @@ index f49a2c18ec20a7181951389066b7d062b48d43fa..4c23e504301a413d9f25daec9bd5b8b8
          synchronized (this.messageSignatureCache) {
          this.send(
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index 6e22aedd36add8e39a82248193f324b36dfa27b5..2aaee8f8c03c624f7e19f4a53f4732b5dd7d96ef 100644
+index 9ca3c55a3b5b1a532b86b08eb92460df4cb54f2a..a58fe1f44a12854be7d89edd92e0342c1f775b03 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -275,7 +275,7 @@ public abstract class PlayerList {
