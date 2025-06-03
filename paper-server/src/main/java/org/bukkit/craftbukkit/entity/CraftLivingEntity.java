@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.Optionull;
+import io.papermc.paper.world.damagesource.CombatTracker;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -90,6 +91,7 @@ import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
 public class CraftLivingEntity extends CraftEntity implements LivingEntity {
+
     private CraftEntityEquipment equipment;
 
     public CraftLivingEntity(final CraftServer server, final net.minecraft.world.entity.LivingEntity entity) {
@@ -98,6 +100,11 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
         if (entity instanceof Mob || entity instanceof ArmorStand) {
             this.equipment = new CraftEntityEquipment(this);
         }
+    }
+
+    @Override
+    public net.minecraft.world.entity.LivingEntity getHandle() {
+        return (net.minecraft.world.entity.LivingEntity) this.entity;
     }
 
     @Override
@@ -494,20 +501,6 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
     public void setNoActionTicks(int ticks) {
         Preconditions.checkArgument(ticks >= 0, "ticks must be >= 0");
         this.getHandle().setNoActionTime(ticks);
-    }
-
-    @Override
-    public net.minecraft.world.entity.LivingEntity getHandle() {
-        return (net.minecraft.world.entity.LivingEntity) this.entity;
-    }
-
-    public void setHandle(final net.minecraft.world.entity.LivingEntity entity) {
-        super.setHandle(entity);
-    }
-
-    @Override
-    public String toString() {
-        return "CraftLivingEntity{" + "id=" + this.getEntityId() + '}';
     }
 
     @Override
@@ -1166,5 +1159,10 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
     @Override
     public boolean canUseEquipmentSlot(org.bukkit.inventory.EquipmentSlot slot) {
         return this.getHandle().canUseSlot(org.bukkit.craftbukkit.CraftEquipmentSlot.getNMS(slot));
+    }
+
+    @Override
+    public CombatTracker getCombatTracker() {
+        return this.getHandle().getCombatTracker().paperCombatTracker;
     }
 }

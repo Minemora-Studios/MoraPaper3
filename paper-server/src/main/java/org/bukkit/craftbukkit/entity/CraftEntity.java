@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 import io.papermc.paper.entity.LookAnchor;
 import java.util.concurrent.CompletableFuture;
+import net.kyori.adventure.util.TriState;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -57,6 +58,7 @@ import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityRemoveEvent;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.permissions.PermissibleBase;
 import org.bukkit.permissions.Permission;
@@ -122,6 +124,38 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
         }
 
         throw new AssertionError("Unknown entity " + (entity == null ? null : entity.getClass()));
+    }
+
+    public Entity getHandle() {
+        return this.entity;
+    }
+
+    public Entity getHandleRaw() {
+        return this.entity;
+    }
+
+    public void setHandle(final Entity entity) {
+        this.entity = entity;
+    }
+
+    @Override
+    public String toString() {
+        return this.getClass().getSimpleName() + "{uuid=" + this.getUniqueId() + '}';
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+
+        final CraftEntity other = (CraftEntity) obj;
+        return this.entity == other.entity; // There should never be duplicate entities with differing references
+    }
+
+    @Override
+    public int hashCode() {
+        // The UUID and thus hash code should never change (unlike the entity id)
+        return this.getUniqueId().hashCode();
     }
 
     @Override
@@ -363,13 +397,25 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
     }
 
     @Override
+    @Deprecated
     public void setVisualFire(boolean fire) {
-        this.getHandle().hasVisualFire = fire;
+        setVisualFire(fire ? TriState.TRUE : TriState.NOT_SET);
+    }
+
+    @Override
+    public void setVisualFire(final TriState fire) {
+        Preconditions.checkArgument(fire != null, "TriState cannot be null");
+        this.getHandle().visualFire = fire;
     }
 
     @Override
     public boolean isVisualFire() {
-        return this.getHandle().hasVisualFire;
+        return getVisualFire().toBooleanOrElse(false);
+    }
+
+    @Override
+    public TriState getVisualFire() {
+        return this.getHandle().visualFire;
     }
 
     @Override
@@ -488,6 +534,12 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
     }
 
     @Override
+    public ItemStack getPickItemStack() {
+        net.minecraft.world.item.ItemStack stack = this.getHandle().getPickResult();
+        return stack == null ? ItemStack.empty() : stack.asBukkitCopy();
+    }
+
+    @Override
     public float getFallDistance() {
         return (float) this.getHandle().fallDistance;
     }
@@ -524,14 +576,6 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
         this.getHandle().totalEntityAge = value;
     }
 
-    public Entity getHandle() {
-        return this.entity;
-    }
-
-    public Entity getHandleRaw() {
-        return this.entity;
-    }
-
     @Override
     public final EntityType getType() {
         return this.entityType;
@@ -559,30 +603,6 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
     @Override
     public Sound getSwimHighSpeedSplashSound() {
         return CraftSound.minecraftToBukkit(this.getHandle().getSwimHighSpeedSplashSound());
-    }
-
-    public void setHandle(final Entity entity) {
-        this.entity = entity;
-    }
-
-    @Override
-    public String toString() {
-        return "CraftEntity{" + "id=" + this.getEntityId() + '}';
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-
-        final CraftEntity other = (CraftEntity) obj;
-        return this.entity == other.entity; // There should never be duplicate entities with differing references
-    }
-
-    @Override
-    public int hashCode() {
-        // The UUID and thus hash code should never change (unlike the entity id)
-        return this.getUniqueId().hashCode();
     }
 
     @Override
