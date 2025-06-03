@@ -3577,22 +3577,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
         getHandle().setScore(score);
     }
 
-    /**
-     * Returns whether container desync checks should skip the full item comparison of remote carried and changed slots
-     * and should instead only check their type and amount.
-     * <p>
-     * This is useful if the client is not able to produce the same item stack (or as of 1.21.5, its data hashes) as the server.
-     *
-     * @return whether to simplify container desync checks
-     */
-    public boolean simplifyContainerDesyncCheck() {
-        return simplifyContainerDesyncCheck;
-    }
-
-    public void setSimplifyContainerDesyncCheck(final boolean simplifyContainerDesyncCheck) {
-        this.simplifyContainerDesyncCheck = simplifyContainerDesyncCheck;
-    }
-
     // MoraPaper
     public void setChatDisabled(final boolean value) {
         getHandle().chatDisabled = value;
