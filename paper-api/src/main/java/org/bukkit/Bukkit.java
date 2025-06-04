@@ -16,6 +16,7 @@ import java.util.function.Consumer;
 import java.util.logging.Logger;
 import io.papermc.paper.configuration.ServerConfiguration;
 import net.kyori.adventure.text.Component;
+import net.minemora.morapaper.MoraGlobalRegionScheduler;
 import org.bukkit.Warning.WarningState;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.block.data.BlockData;
@@ -2873,9 +2874,9 @@ public final class Bukkit {
 
     // MoraPaper - Habia que poner e implementar Vault pero ni eso hacia abrir el Menu asi que probamos paper sin Mora y si funcionaba entonces no sabiamos por que asi que decompilamos HeadsDatabase y descubrimos que verifica si el plugin es folia usando reflect para encontrar este metodo y resulta que nosotros eliminamos todo el scheduler de folia
 
-    // public static @NotNull io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler getGlobalRegionScheduler() {
-    //     return server.getGlobalRegionScheduler();
-    // }
+    public static @NotNull io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler getGlobalRegionScheduler() {
+        return MoraGlobalRegionScheduler.getInstance();
+    }
 
     /**
      * Returns whether the current thread is ticking a region and that the region being ticked
