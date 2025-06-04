@@ -2872,10 +2872,8 @@ public final class Bukkit {
      * @return the global region scheduler
      */
 
-    // MoraPaper - Habia que poner e implementar Vault pero ni eso hacia abrir el Menu asi que probamos paper sin Mora y si funcionaba entonces no sabiamos por que asi que decompilamos HeadsDatabase y descubrimos que verifica si el plugin es folia usando reflect para encontrar este metodo y resulta que nosotros eliminamos todo el scheduler de folia
-
     public static @NotNull io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler getGlobalRegionScheduler() {
-        return MoraGlobalRegionScheduler.getInstance();
+        return server.getGlobalRegionScheduler();
     }
 
     /**

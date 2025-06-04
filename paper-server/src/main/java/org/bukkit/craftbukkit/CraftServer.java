@@ -320,7 +320,8 @@ public final class CraftServer implements Server {
     // Paper start - Folia region threading API
     private final io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler regionizedScheduler = new io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler();
     private final io.papermc.paper.threadedregions.scheduler.FoliaAsyncScheduler asyncScheduler = new io.papermc.paper.threadedregions.scheduler.FoliaAsyncScheduler();
-    private final io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler globalRegionScheduler = new io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler();
+    // MoraPaper - Habia que poner e implementar Vault pero ni eso hacia abrir el Menu asi que probamos paper sin Mora y si funcionaba entonces no sabiamos por que asi que decompilamos HeadsDatabase y descubrimos que verifica si el plugin es folia usando reflect para encontrar este metodo y resulta que nosotros eliminamos todo el scheduler de folia
+    private final net.minemora.morapaper.MoraGlobalRegionScheduler globalRegionScheduler = new net.minemora.morapaper.MoraGlobalRegionScheduler();
 
     @Override
     public final io.papermc.paper.threadedregions.scheduler.RegionScheduler getRegionScheduler() {
@@ -333,7 +334,7 @@ public final class CraftServer implements Server {
     }
 
     @Override
-    public final io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler getGlobalRegionScheduler() {
+    public final net.minemora.morapaper.MoraGlobalRegionScheduler getGlobalRegionScheduler() {
         return this.globalRegionScheduler;
     }
 

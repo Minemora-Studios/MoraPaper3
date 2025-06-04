@@ -14,16 +14,7 @@ import java.util.function.Consumer;
 
 public class MoraGlobalRegionScheduler implements GlobalRegionScheduler {
 
-    private static MoraGlobalRegionScheduler instance;
-
     private final Set<MoraScheduledTask> tasks = ConcurrentHashMap.newKeySet();
-
-    public static MoraGlobalRegionScheduler getInstance() {
-        if (instance == null) {
-            instance = new MoraGlobalRegionScheduler();
-        }
-        return instance;
-    }
 
     @Override
     public void execute(@NotNull Plugin plugin, @NotNull Runnable run) {
