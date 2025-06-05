@@ -421,8 +421,23 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
     @Override
     public Chunk[] getLoadedChunks() {
-        List<ChunkHolder> chunks = ca.spottedleaf.moonrise.common.PlatformHooks.get().getVisibleChunkHolders(this.world); // Paper
-        return chunks.stream().map(ChunkHolder::getFullChunkNow).filter(Objects::nonNull).map(CraftChunk::new).toArray(Chunk[]::new);
+        // Paper start - optimise getLoadedChunks
+        net.minecraft.server.level.ServerChunkCache serverChunkCache = this.getHandle().chunkSource;
+        ca.spottedleaf.moonrise.common.list.ReferenceList<Chunk> chunks = new ca.spottedleaf.moonrise.common.list.ReferenceList<>(new Chunk[serverChunkCache.fullChunks.size()]);
+
+        for (java.util.PrimitiveIterator.OfLong iterator = serverChunkCache.fullChunks.keyIterator(); iterator.hasNext();) {
+            long chunk = iterator.nextLong();
+            chunks.add(new CraftChunk(this.world, ca.spottedleaf.moonrise.common.util.CoordinateUtils.getChunkX(chunk), ca.spottedleaf.moonrise.common.util.CoordinateUtils.getChunkZ(chunk)));
+        }
+
+        Chunk[] raw = chunks.getRawDataUnchecked();
+        int size = chunks.size();
+        if (raw.length == size) {
+            // always true when on main
+            return raw;
+        }
+        return java.util.Arrays.copyOf(raw, size);
+        // Paper end - optimise getLoadedChunks
     }
 
     @Override
@@ -828,7 +843,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
             CraftPlayer cp = (CraftPlayer) p;
             if (cp.getHandle().connection == null) continue;
 
-            cp.getHandle().connection.send(new ClientboundSetTimePacket(cp.getHandle().level().getGameTime(), cp.getHandle().getPlayerTime(), cp.getHandle().relativeTime && cp.getHandle().serverLevel().getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)));
+            cp.getHandle().connection.send(new ClientboundSetTimePacket(cp.getHandle().level().getGameTime(), cp.getHandle().getPlayerTime(), cp.getHandle().relativeTime && cp.getHandle().level().getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)));
         }
     }
 

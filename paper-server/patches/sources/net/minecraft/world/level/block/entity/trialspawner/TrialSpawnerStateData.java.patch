@@ -1,6 +1,6 @@
---- a/net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerData.java
-+++ b/net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerData.java
-@@ -197,7 +_,7 @@
+--- a/net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.java
++++ b/net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.java
+@@ -185,7 +_,7 @@
                      mob.dropPreservedEquipment(level);
                  }
  
@@ -8,4 +8,4 @@
 +                entity.remove(Entity.RemovalReason.DISCARDED, org.bukkit.event.entity.EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - Add bukkit remove cause;
              }
          });
-         if (!spawner.getOminousConfig().spawnPotentialsDefinition().isEmpty()) {
+         if (!spawner.ominousConfig().spawnPotentialsDefinition().isEmpty()) {
