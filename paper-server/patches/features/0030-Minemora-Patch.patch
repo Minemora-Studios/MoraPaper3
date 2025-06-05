@@ -755,6 +755,42 @@ index d9cb4f0ed0c4f63362c837aeef3c4194911455c9..a7ea544697838886273161844753e148
      private final NonNullList<ItemStack> items = NonNullList.withSize(36, ItemStack.EMPTY);
      private int selected;
      public final Player player;
+diff --git a/net/minecraft/world/entity/projectile/Snowball.java b/net/minecraft/world/entity/projectile/Snowball.java
+index 677b4b681f9c2c09a8ae3cfdec72102265547a7b..d9fbd2b7ae14cdd1d8cc8639ceba84e6bbf99e65 100644
+--- a/net/minecraft/world/entity/projectile/Snowball.java
++++ b/net/minecraft/world/entity/projectile/Snowball.java
+@@ -64,4 +64,13 @@ public class Snowball extends ThrowableItemProjectile {
+             this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.HIT); // CraftBukkit - add Bukkit remove cause
+         }
+     }
++
++    // MoraPaper start - Prevent Snowball Lag Machine
++    @Override
++    public void tick() {
++        super.tick();
++        if (this.tickCount >= 8) discard();
++    }
++    // MoraPaper end - Prevent Snowball Lag Machine
++
+ }
+diff --git a/net/minecraft/world/entity/projectile/ThrownEgg.java b/net/minecraft/world/entity/projectile/ThrownEgg.java
+index 73ec34b43f3fb2aa3edc3f1cb48a923d1fa32036..10bdc95560b6defa238396a57a8192c11a7ced14 100644
+--- a/net/minecraft/world/entity/projectile/ThrownEgg.java
++++ b/net/minecraft/world/entity/projectile/ThrownEgg.java
+@@ -128,4 +128,13 @@ public class ThrownEgg extends ThrowableItemProjectile {
+     public Item getDefaultItem() {
+         return Items.EGG;
+     }
++
++    // MoraPaper start - Prevent Egg Lag Machine
++    @Override
++    public void tick() {
++        super.tick();
++        if (this.tickCount >= 8) discard();
++    }
++    // MoraPaper end - Prevent Egg Lag Machine
++
+ }
 diff --git a/net/minecraft/world/entity/vehicle/NewMinecartBehavior.java b/net/minecraft/world/entity/vehicle/NewMinecartBehavior.java
 index 090b19752fbfc856d9fbf118510afc6cda2b9989..71486d7a2c7b7e775db283f937c9ffce1268d4db 100644
 --- a/net/minecraft/world/entity/vehicle/NewMinecartBehavior.java
