@@ -486,7 +486,7 @@ index dda8d38ef61672cc714d9e5a475f9b0412ed5ff9..f037ba03e718b2b50b07d802619ab23b
              for (Entity entity : passengerEntity.getPassengers()) {
                  this.tickPassenger(passengerEntity, entity, isActive); // Paper - EAR 2
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 53f038e1b5e7a13a08a0c925c8bd3f8a40868195..c32f41800675064f13a04607f1068c1ac2b4852c 100644
+index 53f038e1b5e7a13a08a0c925c8bd3f8a40868195..343096474133cd9d40bf39ea2b2550bf0c3b8fb4 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -222,6 +222,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
@@ -503,7 +503,7 @@ index 53f038e1b5e7a13a08a0c925c8bd3f8a40868195..c32f41800675064f13a04607f1068c1a
  
 +    // MoraPaper - optimized constructor for NPCs
 +    public ServerPlayer(MinecraftServer server, ServerLevel level, GameProfile gameProfile) {
-+        super(level, level.getSharedSpawnPos(), level.getSharedSpawnAngle(), gameProfile);
++        super(level, gameProfile);
 +        this.textFilter = server.createTextFilterForPlayer(this);
 +        this.gameMode = server.createGameModeForPlayer(this);
 +        this.server = server;
