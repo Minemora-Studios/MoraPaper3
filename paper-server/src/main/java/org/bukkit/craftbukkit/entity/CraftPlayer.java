@@ -12,6 +12,7 @@ import io.papermc.paper.configuration.GlobalConfiguration;
 import io.papermc.paper.entity.LookAnchor;
 import io.papermc.paper.entity.PaperPlayerGiveResult;
 import io.papermc.paper.entity.PlayerGiveResult;
+import io.papermc.paper.entity.TeleportFlag;
 import io.papermc.paper.math.Position;
 import io.papermc.paper.util.MCUtil;
 import it.unimi.dsi.fastutil.shorts.ShortArraySet;
@@ -190,6 +191,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerExpCooldownChangeEvent;
 import org.bukkit.event.player.PlayerHideEntityEvent;
+import org.bukkit.event.player.PlayerPreTeleportEvent;
 import org.bukkit.event.player.PlayerRegisterChannelEvent;
 import org.bukkit.event.player.PlayerShowEntityEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -1423,6 +1425,25 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
                 allFlags.add(flag);
             }
         }
+
+        // From = Players current Location
+        Location from = this.getLocation();
+
+        // To = Players new Location if Teleport is Successful
+        Location to = location;
+
+        // MoraPaper Starts - Pre teleport event
+        final PlayerPreTeleportEvent preTeleportEvent = new PlayerPreTeleportEvent(this, from, to, cause);
+        preTeleportEvent.callEvent();
+
+        if (!preTeleportEvent.getFlags().isEmpty()) {
+            // If allFlags is empty, it means it's an immutable Set, replace it with a mutable one
+            if (allFlags.isEmpty()) allFlags = new HashSet<>();
+
+            allFlags.addAll(preTeleportEvent.getFlags());
+        }
+        // MoraPaper Ends
+
         boolean dismount = !allFlags.contains(io.papermc.paper.entity.TeleportFlag.EntityState.RETAIN_VEHICLE);
         boolean ignorePassengers = allFlags.contains(io.papermc.paper.entity.TeleportFlag.EntityState.RETAIN_PASSENGERS);
         // Paper end - Teleport API
@@ -1455,10 +1476,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
             return false;
         }
 
-        // From = Players current Location
-        Location from = this.getLocation();
-        // To = Players new Location if Teleport is Successful
-        Location to = location;
         // Create & Call the Teleport Event.
         PlayerTeleportEvent event = new PlayerTeleportEvent(this, from, to, cause, Set.copyOf(relativeArguments)); // Paper - Teleport API
         this.server.getPluginManager().callEvent(event);
