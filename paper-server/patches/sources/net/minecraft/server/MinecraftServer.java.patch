@@ -172,7 +172,7 @@
          if (profiledDuration != null) {
              profiledDuration.finish(true);
          }
-@@ -364,25 +_,265 @@
+@@ -364,25 +_,266 @@
      protected void forceDifficulty() {
      }
  
@@ -439,6 +439,7 @@
 +        if (io.papermc.paper.plugin.PluginInitializerManager.instance().pluginRemapper != null) io.papermc.paper.plugin.PluginInitializerManager.instance().pluginRemapper.pluginsEnabled(); // Paper - Remap plugins
 +        io.papermc.paper.command.brigadier.PaperCommands.INSTANCE.setValid(); // Paper - reset invalid state for event fire below
 +        io.papermc.paper.plugin.lifecycle.event.LifecycleEventRunner.INSTANCE.callReloadableRegistrarEvent(io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents.COMMANDS, io.papermc.paper.command.brigadier.PaperCommands.INSTANCE, org.bukkit.plugin.Plugin.class, io.papermc.paper.plugin.lifecycle.event.registrar.ReloadableRegistrarEvent.Cause.INITIAL); // Paper - call commands event for regular plugins
++        this.server.getCommandMap().registerServerAliases(); // Paper - relocate initial CommandMap#registerServerAliases() call
 +        ((org.bukkit.craftbukkit.help.SimpleHelpMap) this.server.getHelpMap()).initializeCommands();
 +        this.server.getPluginManager().callEvent(new org.bukkit.event.server.ServerLoadEvent(org.bukkit.event.server.ServerLoadEvent.LoadType.STARTUP));
 +        this.connection.acceptConnections();
@@ -983,16 +984,25 @@
              ObjectArrayList<GameProfile> list = new ObjectArrayList<>(min);
              int randomInt = Mth.nextInt(this.random, 0, players.size() - min);
  
-@@ -1040,17 +_,66 @@
+@@ -1040,17 +_,75 @@
      protected void tickChildren(BooleanSupplier hasTimeLeft) {
          ProfilerFiller profilerFiller = Profiler.get();
          this.getPlayerList().getPlayers().forEach(serverPlayer1 -> serverPlayer1.connection.suspendFlushing());
 +        this.server.getScheduler().mainThreadHeartbeat(); // CraftBukkit
 +        // Paper start - Folia scheduler API
 +        ((io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler) org.bukkit.Bukkit.getGlobalRegionScheduler()).tick();
++        for (ServerPlayer player : this.playerList.players) {
++            if (!this.playerList.players.contains(player)) {
++                continue;
++            }
++            final org.bukkit.craftbukkit.entity.CraftEntity bukkit = player.getBukkitEntityRaw();
++            if (bukkit != null) {
++                bukkit.taskScheduler.executeTick();
++            }
++        }
 +        getAllLevels().forEach(level -> {
-+            for (final net.minecraft.world.entity.Entity entity : level.getEntities().getAll()) {
-+                if (entity.isRemoved()) {
++            for (final net.minecraft.world.entity.Entity entity : io.papermc.paper.FeatureHooks.getAllEntities(level)) {
++                if (entity.isRemoved() || entity instanceof ServerPlayer) {
 +                    continue;
 +                }
 +                final org.bukkit.craftbukkit.entity.CraftEntity bukkit = entity.getBukkitEntityRaw();
