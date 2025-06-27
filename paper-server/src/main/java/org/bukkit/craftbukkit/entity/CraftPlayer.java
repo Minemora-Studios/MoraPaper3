@@ -3594,7 +3594,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
 
     @Override
     public Input getLastInput() {
-        return getHandle().getLastClientInput();
+        return new CraftInput(getHandle().getLastClientInput());
     }
 
 }
