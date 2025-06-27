@@ -3592,4 +3592,9 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
         getHandle().chatDisabled = value;
     }
 
+    @Override
+    public Input getLastInput() {
+        return getHandle().getLastClientInput();
+    }
+
 }

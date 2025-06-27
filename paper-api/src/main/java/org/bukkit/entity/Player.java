@@ -3934,4 +3934,11 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      */
     void setChatDisabled(boolean disabled);
 
+    /**
+     * Retrieves the last input received or processed.
+     *
+     * @return an Input object representing the last input.
+     */
+    Input getLastInput();
+
 }
