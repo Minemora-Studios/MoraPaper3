@@ -5,10 +5,10 @@ Subject: [PATCH] Minemora Patch
 
 
 diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
-index f473999938840562b1007a789600342e5796a123..29ed24a2518e97aff8c5c1f259b4d30226abaeca 100644
+index 6ce4a98e4d3b633e3c87944c23b6b3f0ff58f159..6fcf25398d29f161a0769b4e9881fd4b5b4cf9f9 100644
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
-@@ -67,6 +67,9 @@ public final class ChunkHolderManager {
+@@ -68,6 +68,9 @@ public final class ChunkHolderManager {
      public static final int ENTITY_TICKING_TICKET_LEVEL = ChunkLevel.ENTITY_TICKING_LEVEL;
      public static final int MAX_TICKET_LEVEL = ChunkLevel.MAX_LEVEL; // inclusive
  
@@ -18,7 +18,7 @@ index f473999938840562b1007a789600342e5796a123..29ed24a2518e97aff8c5c1f259b4d302
      public static final TicketType UNLOAD_COOLDOWN = ChunkSystemTicketType.create("chunk_system:unload_cooldown", null, 5L * 20L);
  
      private static final long NO_TIMEOUT_MARKER = Long.MIN_VALUE;
-@@ -1173,7 +1176,9 @@ public final class ChunkHolderManager {
+@@ -1194,7 +1197,9 @@ public final class ChunkHolderManager {
          // We do need to process updates here so that any addTicket that is synchronised before this call does not go missed.
          this.processTicketUpdates();
  
@@ -67,38 +67,30 @@ index d13d67a3925f96a2a27159d303e8c19478971bd7..6b4dde35e530c964aa605f0f64e00c6a
                  player.getTabListDisplayName(),
                  player.isModelPartShown(PlayerModelPart.HAT),
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index d6dcb6d146d89a8fb96e7c669e5deb802223abd6..3ed7149010613d5cf6437376080e71cffe65e7b2 100644
+index 52fa5112cd90ba766c94512a02401dd3aee82cc9..005e2e8d9bb946e766c2775b540ba813e94bbeee 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -1658,18 +1658,18 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1661,14 +1661,14 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          this.getPlayerList().getPlayers().forEach(serverPlayer1 -> serverPlayer1.connection.suspendFlushing());
          this.server.getScheduler().mainThreadHeartbeat(); // CraftBukkit
-         // Paper start - Folia scheduler API
--        ((io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler) org.bukkit.Bukkit.getGlobalRegionScheduler()).tick();
--        getAllLevels().forEach(level -> {
--            for (final net.minecraft.world.entity.Entity entity : level.getEntities().getAll()) {
--                if (entity.isRemoved()) {
--                    continue;
--                }
--                final org.bukkit.craftbukkit.entity.CraftEntity bukkit = entity.getBukkitEntityRaw();
--                if (bukkit != null) {
--                    bukkit.taskScheduler.executeTick();
--                }
+         // Paper start - optimise Folia entity scheduler
+-        ((io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler)org.bukkit.Bukkit.getGlobalRegionScheduler()).tick();
+-        for (io.papermc.paper.threadedregions.EntityScheduler scheduler : this.entitySchedulerTickList.getAllSchedulers()) {
+-            if (scheduler.isRetired()) {
+-                continue;
 -            }
--        });
-+        // ((io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler) org.bukkit.Bukkit.getGlobalRegionScheduler()).tick();
-+        // getAllLevels().forEach(level -> {
-+        //     for (final net.minecraft.world.entity.Entity entity : level.getEntities().getAll()) {
-+        //         if (entity.isRemoved()) {
-+        //             continue;
-+        //         }
-+        //         final org.bukkit.craftbukkit.entity.CraftEntity bukkit = entity.getBukkitEntityRaw();
-+        //         if (bukkit != null) {
-+        //             bukkit.taskScheduler.executeTick();
-+        //         }
+-
+-            scheduler.executeTick();
+-        }
++        // ((io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler)org.bukkit.Bukkit.getGlobalRegionScheduler()).tick();
++        // for (io.papermc.paper.threadedregions.EntityScheduler scheduler : this.entitySchedulerTickList.getAllSchedulers()) {
++        //     if (scheduler.isRetired()) {
++        //         continue;
 +        //     }
-+        // });
-         // Paper end - Folia scheduler API
++
++        //     scheduler.executeTick();
++        // }
+         // Paper end - optimise Folia entity scheduler
          io.papermc.paper.adventure.providers.ClickCallbackProviderImpl.CALLBACK_MANAGER.handleQueue(this.tickCount); // Paper
          profilerFiller.push("commandFunctions");
 diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
@@ -486,7 +478,7 @@ index dda8d38ef61672cc714d9e5a475f9b0412ed5ff9..f037ba03e718b2b50b07d802619ab23b
              for (Entity entity : passengerEntity.getPassengers()) {
                  this.tickPassenger(passengerEntity, entity, isActive); // Paper - EAR 2
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 53f038e1b5e7a13a08a0c925c8bd3f8a40868195..343096474133cd9d40bf39ea2b2550bf0c3b8fb4 100644
+index 728fa1210e0fd837e28c48802045dea2ae59f5d6..5871122ddfbc63e4c0cb9ddb13a698f85d9bff38 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -222,6 +222,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
@@ -497,7 +489,7 @@ index 53f038e1b5e7a13a08a0c925c8bd3f8a40868195..343096474133cd9d40bf39ea2b2550bf
      private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
      private int lastRecordedFoodLevel = Integer.MIN_VALUE;
      private int lastRecordedAirLevel = Integer.MIN_VALUE;
-@@ -480,6 +481,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -544,6 +545,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          // CraftBukkit end
      }
  
@@ -521,7 +513,7 @@ index 53f038e1b5e7a13a08a0c925c8bd3f8a40868195..343096474133cd9d40bf39ea2b2550bf
      @Override
      public BlockPos adjustSpawnLocation(ServerLevel level, BlockPos pos) {
          AABB aabb = this.getDimensions(Pose.STANDING).makeBoundingBox(Vec3.ZERO);
-@@ -2203,7 +2221,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2267,7 +2285,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendSystemMessage(mesage, false);
      }
  
@@ -534,7 +526,7 @@ index 53f038e1b5e7a13a08a0c925c8bd3f8a40868195..343096474133cd9d40bf39ea2b2550bf
          if (this.acceptsSystemMessages(overlay)) {
              this.connection
                  .send(
-@@ -2231,6 +2254,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2295,6 +2318,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendChatMessage(message, filtered, boundType, null);
      }
      public void sendChatMessage(OutgoingChatMessage message, boolean filtered, ChatType.Bound boundType, @Nullable Component unsigned) {
@@ -545,7 +537,7 @@ index 53f038e1b5e7a13a08a0c925c8bd3f8a40868195..343096474133cd9d40bf39ea2b2550bf
          if (this.acceptsChatMessages()) {
              message.sendToPlayer(this, filtered, boundType, unsigned); // Paper
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index aeb43902a09ef9c1b137964065780be3e87648f4..d3a713c16af120b794f5c1f656c4b2c06d0f9dce 100644
+index 625eae18ab13ae27949128f6325b3608a557cf1f..49fbd505bed985e94df6693892422537758f164e 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -2447,8 +2447,9 @@ public class ServerGamePacketListenerImpl
