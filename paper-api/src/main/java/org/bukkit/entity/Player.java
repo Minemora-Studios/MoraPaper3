@@ -3940,6 +3940,7 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      */
     Input getLastInput();
 
+    /**
      * Gets the game connection for this player.
      *
      * @return the game connection
