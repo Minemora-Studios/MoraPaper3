@@ -67,7 +67,7 @@ index d13d67a3925f96a2a27159d303e8c19478971bd7..6b4dde35e530c964aa605f0f64e00c6a
                  player.getTabListDisplayName(),
                  player.isModelPartShown(PlayerModelPart.HAT),
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index 52fa5112cd90ba766c94512a02401dd3aee82cc9..005e2e8d9bb946e766c2775b540ba813e94bbeee 100644
+index 574a7c232150642ee6872ce9da3bf742673066ee..576f0968a6bbf17a05c058a0ac747d41831a0464 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
 @@ -1661,14 +1661,14 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -91,8 +91,8 @@ index 52fa5112cd90ba766c94512a02401dd3aee82cc9..005e2e8d9bb946e766c2775b540ba813
 +        //     scheduler.executeTick();
 +        // }
          // Paper end - optimise Folia entity scheduler
-         io.papermc.paper.adventure.providers.ClickCallbackProviderImpl.CALLBACK_MANAGER.handleQueue(this.tickCount); // Paper
-         profilerFiller.push("commandFunctions");
+         io.papermc.paper.adventure.providers.ClickCallbackProviderImpl.ADVENTURE_CLICK_MANAGER.handleQueue(this.tickCount); // Paper
+         io.papermc.paper.adventure.providers.ClickCallbackProviderImpl.DIALOG_CLICK_MANAGER.handleQueue(this.tickCount); // Paper
 diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
 index eb352aa4296abc3ed4cf31c590bc0be66daf4de3..555b2a0612306be07efde1fb2ba7a85c9b6b4c16 100644
 --- a/net/minecraft/server/level/ChunkMap.java
@@ -478,7 +478,7 @@ index dda8d38ef61672cc714d9e5a475f9b0412ed5ff9..f037ba03e718b2b50b07d802619ab23b
              for (Entity entity : passengerEntity.getPassengers()) {
                  this.tickPassenger(passengerEntity, entity, isActive); // Paper - EAR 2
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index dfa00516e9a6c941087bd7ecfd5aca8a9f7915be..6b0f70061cf9edf5ff7ba99204cd3f540f11afd1 100644
+index 8f94c963f2c59668d72d162f46f7505d6a6b06a5..9f39c89bb2575a0ad149e710c1cabb379570f3a6 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -222,6 +222,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
@@ -513,7 +513,7 @@ index dfa00516e9a6c941087bd7ecfd5aca8a9f7915be..6b0f70061cf9edf5ff7ba99204cd3f54
      @Override
      public BlockPos adjustSpawnLocation(ServerLevel level, BlockPos pos) {
          AABB aabb = this.getDimensions(Pose.STANDING).makeBoundingBox(Vec3.ZERO);
-@@ -2201,7 +2219,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2214,7 +2232,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendSystemMessage(mesage, false);
      }
  
@@ -526,7 +526,7 @@ index dfa00516e9a6c941087bd7ecfd5aca8a9f7915be..6b0f70061cf9edf5ff7ba99204cd3f54
          if (this.acceptsSystemMessages(overlay)) {
              this.connection
                  .send(
-@@ -2229,6 +2252,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2242,6 +2265,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendChatMessage(message, filtered, boundType, null);
      }
      public void sendChatMessage(OutgoingChatMessage message, boolean filtered, ChatType.Bound boundType, @Nullable Component unsigned) {
@@ -537,10 +537,10 @@ index dfa00516e9a6c941087bd7ecfd5aca8a9f7915be..6b0f70061cf9edf5ff7ba99204cd3f54
          if (this.acceptsChatMessages()) {
              message.sendToPlayer(this, filtered, boundType, unsigned); // Paper
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index ef9a0cbf75fb79d289d1d788ba0e5f181e3cdddd..2976a17ebfe2f27500116fc675f27b5415523a6e 100644
+index ca13dd72f173be6714965c506f2d48dcd3c9e569..0f8a780f695485f3e76e7897fe7e9f6045d27bc5 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2445,8 +2445,9 @@ public class ServerGamePacketListenerImpl
+@@ -2457,8 +2457,9 @@ public class ServerGamePacketListenerImpl
                  LastSeenMessages lastSeenMessages = this.lastSeenMessages.applyUpdate(update);
                  var10000 = Optional.of(lastSeenMessages);
              } catch (LastSeenMessagesValidator.ValidationException var5) {
@@ -552,7 +552,7 @@ index ef9a0cbf75fb79d289d1d788ba0e5f181e3cdddd..2976a17ebfe2f27500116fc675f27b54
                  return Optional.empty();
              }
  
-@@ -2548,8 +2549,9 @@ public class ServerGamePacketListenerImpl
+@@ -2560,8 +2561,9 @@ public class ServerGamePacketListenerImpl
              try {
                  this.lastSeenMessages.applyOffset(packet.offset());
              } catch (LastSeenMessagesValidator.ValidationException var5) {
@@ -564,7 +564,7 @@ index ef9a0cbf75fb79d289d1d788ba0e5f181e3cdddd..2976a17ebfe2f27500116fc675f27b54
              }
          }
      }
-@@ -2664,6 +2666,10 @@ public class ServerGamePacketListenerImpl
+@@ -2676,6 +2678,10 @@ public class ServerGamePacketListenerImpl
              return;
          }
          // CraftBukkit end
@@ -576,10 +576,10 @@ index ef9a0cbf75fb79d289d1d788ba0e5f181e3cdddd..2976a17ebfe2f27500116fc675f27b54
          synchronized (this.messageSignatureCache) {
          this.send(
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
-index 1ba342a1a60951f828034d3ed535b577b3990bf6..3e0be34a51460ebd033ab946ab43daf1553b1cb9 100644
+index 0c52e315557e1dae6a852694786e72241fff1e29..211817065d70866a916b7902f45dcd1af299c547 100644
 --- a/net/minecraft/world/entity/LivingEntity.java
 +++ b/net/minecraft/world/entity/LivingEntity.java
-@@ -4661,4 +4661,9 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+@@ -4655,4 +4655,9 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
  
      public record Fallsounds(SoundEvent small, SoundEvent big) {
      }
@@ -590,10 +590,10 @@ index 1ba342a1a60951f828034d3ed535b577b3990bf6..3e0be34a51460ebd033ab946ab43daf1
 +    }
  }
 diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
-index 0470c4bbf8be7e48ce8dfa4910c3b9f5ebb23360..5f25e6ce94739ff07eee3b90959d4917a36cc204 100644
+index e0b3cb2b2694768803ed347a1026b881fd624951..5ae62d8239de38a8afa87e33b1d252f1dea34723 100644
 --- a/net/minecraft/world/entity/Mob.java
 +++ b/net/minecraft/world/entity/Mob.java
-@@ -499,8 +499,13 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+@@ -506,8 +506,13 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
          this.resetAngularLeashMomentum();
      }
  
@@ -607,7 +607,7 @@ index 0470c4bbf8be7e48ce8dfa4910c3b9f5ebb23360..5f25e6ce94739ff07eee3b90959d4917
          super.aiStep();
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("looting");
-@@ -695,21 +700,39 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+@@ -708,21 +713,39 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
          return false;
      }
  
@@ -629,7 +629,7 @@ index 0470c4bbf8be7e48ce8dfa4910c3b9f5ebb23360..5f25e6ce94739ff07eee3b90959d4917
 +
      @Override
      public void checkDespawn() {
-         if (this.level().getDifficulty() == Difficulty.PEACEFUL && this.shouldDespawnInPeaceful()) {
+         if (this.level().getDifficulty() == Difficulty.PEACEFUL && this.shouldActuallyDespawnInPeaceful()) { //Paper - allow changing despawnInPeaceful
              this.discard(EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
          } else if (!this.isPersistenceRequired() && !this.requiresCustomPersistence()) {
 -            Entity nearestPlayer = this.level().findNearbyPlayer(this, -1.0, EntitySelector.PLAYER_AFFECTS_SPAWNING); // Paper - Affects Spawning API
