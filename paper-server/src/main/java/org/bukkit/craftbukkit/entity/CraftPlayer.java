@@ -10,6 +10,8 @@ import com.mojang.datafixers.util.Pair;
 import io.papermc.paper.FeatureHooks;
 import io.papermc.paper.connection.PlayerGameConnection;
 import io.papermc.paper.connection.PluginMessageBridgeImpl;
+import io.papermc.paper.dialog.Dialog;
+import io.papermc.paper.dialog.PaperDialog;
 import io.papermc.paper.entity.LookAnchor;
 import io.papermc.paper.entity.PaperPlayerGiveResult;
 import io.papermc.paper.entity.PlayerGiveResult;
@@ -44,6 +46,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import net.kyori.adventure.dialog.DialogLike;
 import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.pointer.PointersSupplier;
 import net.kyori.adventure.util.TriState;
@@ -228,7 +231,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
     private double healthScale = 20;
     private CraftWorldBorder clientWorldBorder = null;
     private BorderChangeListener clientWorldBorderListener = this.createWorldBorderListener();
-    public org.bukkit.event.player.PlayerResourcePackStatusEvent.Status resourcePackStatus; // Paper - more resource pack API
     private long lastSaveTime; // Paper - getLastPlayed replacement API
 
     public CraftPlayer(CraftServer server, ServerPlayer entity) {
@@ -265,8 +267,8 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
     @Override
     public void remove() {
         if (this.getHandle().getClass().equals(ServerPlayer.class)) { // special case for NMS plugins inheriting
-        // Will lead to an inconsistent player state if we remove the player as any other entity.
-        throw new UnsupportedOperationException(String.format("Cannot remove player %s, use Player#kickPlayer(String) instead.", this.getName()));
+            // Will lead to an inconsistent player state if we remove the player as any other entity.
+            throw new UnsupportedOperationException(String.format("Cannot remove player %s, use Player#kickPlayer(String) instead.", this.getName()));
         } else {
             super.remove();
         }
@@ -434,21 +436,21 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
 
     @Override
     public void setPlayerListHeaderFooter(BaseComponent @Nullable [] header, BaseComponent @Nullable [] footer) {
-         if (header != null) {
-             String headerJson = CraftChatMessage.bungeeToJson(header);
-             playerListHeader = net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().deserialize(headerJson);
-         } else {
-             playerListHeader = null;
-         }
+        if (header != null) {
+            String headerJson = CraftChatMessage.bungeeToJson(header);
+            playerListHeader = net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().deserialize(headerJson);
+        } else {
+            playerListHeader = null;
+        }
 
         if (footer != null) {
-             String footerJson =  CraftChatMessage.bungeeToJson(footer);
-             playerListFooter = net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().deserialize(footerJson);
+            String footerJson = CraftChatMessage.bungeeToJson(footer);
+            playerListFooter = net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().deserialize(footerJson);
         } else {
-             playerListFooter = null;
-         }
+            playerListFooter = null;
+        }
 
-         updatePlayerListHeaderFooter();
+        updatePlayerListHeaderFooter();
     }
 
     @Override
@@ -1054,6 +1056,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
         this.sendSignChange0(components, loc, dyeColor, hasGlowingText);
     }
     // Paper end
+
     @Override
     public void sendSignChange(Location loc, @Nullable String @Nullable [] lines) {
         this.sendSignChange(loc, lines, DyeColor.BLACK);
@@ -1846,7 +1849,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
         final net.minecraft.world.item.ItemStack itemstack = stackEntry.map(net.minecraft.world.item.enchantment.EnchantedItemInUse::itemStack).orElse(net.minecraft.world.item.ItemStack.EMPTY);
         if (!itemstack.isEmpty() && itemstack.getItem().components().has(net.minecraft.core.component.DataComponents.MAX_DAMAGE)) {
             net.minecraft.world.entity.ExperienceOrb orb = net.minecraft.world.entity.EntityType.EXPERIENCE_ORB.create(handle.level(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
-            orb.setValue(amount);;
+            orb.setValue(amount);
             orb.spawnReason = org.bukkit.entity.ExperienceOrb.SpawnReason.CUSTOM;
             orb.setPosRaw(handle.getX(), handle.getY(), handle.getZ());
 
@@ -2506,10 +2509,17 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
     }
     // Paper end - adventure
 
+    @Override
+    public void showDialog(final DialogLike dialog) {
+        if (this.getHandle().connection == null) return;
+        this.getHandle().openDialog(PaperDialog.bukkitToMinecraftHolder((Dialog) dialog));
+    }
+
     // Paper start - more resource pack API
     @Override
     public org.bukkit.event.player.PlayerResourcePackStatusEvent.Status getResourcePackStatus() {
-        return this.resourcePackStatus;
+        if (this.getHandle().connection == null) throw new UnsupportedOperationException("Too early to call this method at this stage");
+        return this.getHandle().connection.connection.resourcePackStatus;
     }
     // Paper end - more resource pack API
 
@@ -2796,7 +2806,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
     }
 
     public AttributeInstance getScaledMaxHealth() {
-        AttributeInstance dummy = new AttributeInstance(Attributes.MAX_HEALTH, (attribute) -> { });
+        AttributeInstance dummy = new AttributeInstance(Attributes.MAX_HEALTH, (attribute) -> {});
         double healthMod = this.scaledHealth ? this.healthScale : this.getMaxHealth();
         if (healthMod >= Float.MAX_VALUE || healthMod <= 0) {
             healthMod = 20; // Reset health
@@ -2938,8 +2948,10 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
         return getHandle().adventure$locale;
     }
     // Paper end
+
     @Override
     public int getPing() {
+        if (this.getHandle().connection == null) throw new UnsupportedOperationException("Too early to call this method at this stage");
         return this.getHandle().connection.latency();
     }
 
@@ -3133,10 +3145,10 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
         java.util.Objects.requireNonNull(part, "part");
         java.util.Objects.requireNonNull(value, "value");
         if (part == net.kyori.adventure.title.TitlePart.TITLE) {
-            final ClientboundSetTitleTextPacket tp = new ClientboundSetTitleTextPacket(io.papermc.paper.adventure.PaperAdventure.asVanilla((net.kyori.adventure.text.Component)value));
+            final ClientboundSetTitleTextPacket tp = new ClientboundSetTitleTextPacket(io.papermc.paper.adventure.PaperAdventure.asVanilla((net.kyori.adventure.text.Component) value));
             this.getHandle().connection.send(tp);
         } else if (part == net.kyori.adventure.title.TitlePart.SUBTITLE) {
-            final ClientboundSetSubtitleTextPacket sp = new ClientboundSetSubtitleTextPacket(io.papermc.paper.adventure.PaperAdventure.asVanilla((net.kyori.adventure.text.Component)value));
+            final ClientboundSetSubtitleTextPacket sp = new ClientboundSetSubtitleTextPacket(io.papermc.paper.adventure.PaperAdventure.asVanilla((net.kyori.adventure.text.Component) value));
             this.getHandle().connection.send(sp);
         } else if (part == net.kyori.adventure.title.TitlePart.TIMES) {
             final net.kyori.adventure.title.Title.Times times = (net.kyori.adventure.title.Title.Times) value;
