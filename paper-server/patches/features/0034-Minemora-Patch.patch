@@ -478,7 +478,7 @@ index dda8d38ef61672cc714d9e5a475f9b0412ed5ff9..f037ba03e718b2b50b07d802619ab23b
              for (Entity entity : passengerEntity.getPassengers()) {
                  this.tickPassenger(passengerEntity, entity, isActive); // Paper - EAR 2
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 728fa1210e0fd837e28c48802045dea2ae59f5d6..5871122ddfbc63e4c0cb9ddb13a698f85d9bff38 100644
+index dfa00516e9a6c941087bd7ecfd5aca8a9f7915be..6b0f70061cf9edf5ff7ba99204cd3f540f11afd1 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -222,6 +222,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
@@ -489,7 +489,7 @@ index 728fa1210e0fd837e28c48802045dea2ae59f5d6..5871122ddfbc63e4c0cb9ddb13a698f8
      private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
      private int lastRecordedFoodLevel = Integer.MIN_VALUE;
      private int lastRecordedAirLevel = Integer.MIN_VALUE;
-@@ -544,6 +545,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -478,6 +479,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          // CraftBukkit end
      }
  
@@ -513,7 +513,7 @@ index 728fa1210e0fd837e28c48802045dea2ae59f5d6..5871122ddfbc63e4c0cb9ddb13a698f8
      @Override
      public BlockPos adjustSpawnLocation(ServerLevel level, BlockPos pos) {
          AABB aabb = this.getDimensions(Pose.STANDING).makeBoundingBox(Vec3.ZERO);
-@@ -2267,7 +2285,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2201,7 +2219,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendSystemMessage(mesage, false);
      }
  
@@ -526,7 +526,7 @@ index 728fa1210e0fd837e28c48802045dea2ae59f5d6..5871122ddfbc63e4c0cb9ddb13a698f8
          if (this.acceptsSystemMessages(overlay)) {
              this.connection
                  .send(
-@@ -2295,6 +2318,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2229,6 +2252,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.sendChatMessage(message, filtered, boundType, null);
      }
      public void sendChatMessage(OutgoingChatMessage message, boolean filtered, ChatType.Bound boundType, @Nullable Component unsigned) {
@@ -537,10 +537,10 @@ index 728fa1210e0fd837e28c48802045dea2ae59f5d6..5871122ddfbc63e4c0cb9ddb13a698f8
          if (this.acceptsChatMessages()) {
              message.sendToPlayer(this, filtered, boundType, unsigned); // Paper
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 625eae18ab13ae27949128f6325b3608a557cf1f..49fbd505bed985e94df6693892422537758f164e 100644
+index ef9a0cbf75fb79d289d1d788ba0e5f181e3cdddd..2976a17ebfe2f27500116fc675f27b5415523a6e 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2447,8 +2447,9 @@ public class ServerGamePacketListenerImpl
+@@ -2445,8 +2445,9 @@ public class ServerGamePacketListenerImpl
                  LastSeenMessages lastSeenMessages = this.lastSeenMessages.applyUpdate(update);
                  var10000 = Optional.of(lastSeenMessages);
              } catch (LastSeenMessagesValidator.ValidationException var5) {
@@ -552,7 +552,7 @@ index 625eae18ab13ae27949128f6325b3608a557cf1f..49fbd505bed985e94df6693892422537
                  return Optional.empty();
              }
  
-@@ -2550,8 +2551,9 @@ public class ServerGamePacketListenerImpl
+@@ -2548,8 +2549,9 @@ public class ServerGamePacketListenerImpl
              try {
                  this.lastSeenMessages.applyOffset(packet.offset());
              } catch (LastSeenMessagesValidator.ValidationException var5) {
@@ -564,7 +564,7 @@ index 625eae18ab13ae27949128f6325b3608a557cf1f..49fbd505bed985e94df6693892422537
              }
          }
      }
-@@ -2666,6 +2668,10 @@ public class ServerGamePacketListenerImpl
+@@ -2664,6 +2666,10 @@ public class ServerGamePacketListenerImpl
              return;
          }
          // CraftBukkit end
@@ -679,10 +679,10 @@ index 5ef9566b16a4d0300ee45a993c46e734db156416..6562b362f62f362b6faf9f9d1c7d0b65
          this.updateNoActionTime();
          super.aiStep();
 diff --git a/net/minecraft/world/entity/npc/Villager.java b/net/minecraft/world/entity/npc/Villager.java
-index 43f16df230f87a43e249a58fc10ef2da517f22ee..313d6cb65bc04b5ba480b9f94a76fbf08591e468 100644
+index e1e2bdb35866a8f32a41f6efd24ad77cf916b2e9..0efb4f2a785a5612896dcd0cf2c168820b285f25 100644
 --- a/net/minecraft/world/entity/npc/Villager.java
 +++ b/net/minecraft/world/entity/npc/Villager.java
-@@ -293,7 +293,12 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+@@ -292,7 +292,12 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
          // Paper start - EAR 2
          this.customServerAiStep(level, false);
      }
