@@ -349,7 +349,7 @@ index e96d4dee14c05f2fa329bfb1588ec795d4e3d730..f820e0ba29c60cf738e0faa809fc1e83
 +
  }
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index dda8d38ef61672cc714d9e5a475f9b0412ed5ff9..f037ba03e718b2b50b07d802619ab23b4a90b256 100644
+index dda8d38ef61672cc714d9e5a475f9b0412ed5ff9..451f946ede8333801f4bcf33c1e99be8ccb2a3ae 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -177,7 +177,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
@@ -477,6 +477,18 @@ index dda8d38ef61672cc714d9e5a475f9b0412ed5ff9..f037ba03e718b2b50b07d802619ab23b
  
              for (Entity entity : passengerEntity.getPassengers()) {
                  this.tickPassenger(passengerEntity, entity, isActive); // Paper - EAR 2
+@@ -1437,6 +1426,11 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+         });
+     }
+ 
++    public void disableDragon() {
++        this.dragonFight = null;
++        this.paperConfig().entities.spawning.scanForLegacyEnderDragon = false;
++    }
++
+     public List<? extends EnderDragon> getDragons() {
+         return this.getEntities(EntityType.ENDER_DRAGON, LivingEntity::isAlive);
+     }
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
 index 8f94c963f2c59668d72d162f46f7505d6a6b06a5..9f39c89bb2575a0ad149e710c1cabb379570f3a6 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
