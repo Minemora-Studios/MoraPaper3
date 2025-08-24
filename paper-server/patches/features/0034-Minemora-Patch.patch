@@ -678,40 +678,113 @@ index 859b859d29b637200cf7c9a0bd52d9f712413e3d..b77c5b992fb09518f3da352af0a0a424
      }
  
      public boolean hasTasks() {
+diff --git a/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java b/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
+index 84d215a498d9bf6f1232bf4af5a4a98d3ba9b131..a4b42a5b6b58fd3b3e7e908eaed2e88b14675a6c 100644
+--- a/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
++++ b/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
+@@ -900,7 +900,7 @@ public class EnderDragon extends Mob implements Enemy {
+         EnderDragonPhase<? extends DragonPhaseInstance> phase = currentPhase.getPhase();
+         Vec3 viewVector;
+         if (phase == EnderDragonPhase.LANDING || phase == EnderDragonPhase.TAKEOFF) {
+-            BlockPos heightmapPos = this.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.getPodium()); // Paper - Allow changing the EnderDragon podium
++            BlockPos heightmapPos = calculateLandPosition((net.minecraft.server.level.ServerLevel) this.level(), net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
+             float max = Math.max((float)Math.sqrt(heightmapPos.distToCenterSqr(this.position())) / 4.0F, 1.0F);
+             float f = 6.0F / max;
+             float xRot = this.getXRot();
+@@ -1002,5 +1002,11 @@ public class EnderDragon extends Mob implements Enemy {
+ 
+         return flag ? i : 0;
+     }
++
++    // MoraSpigot - Allow overriding of land position to ignore the heightmap position
++    public net.minecraft.core.BlockPos calculateLandPosition(final net.minecraft.server.level.ServerLevel level, final net.minecraft.world.level.levelgen.Heightmap.Types heightmapType) {
++        return level.getHeightmapPos(heightmapType, getPodium()); // Paper - Allow changing the EnderDragon podium
++    }
++
+     // CraftBukkit end
+ }
+diff --git a/net/minecraft/world/entity/boss/enderdragon/phases/DragonDeathPhase.java b/net/minecraft/world/entity/boss/enderdragon/phases/DragonDeathPhase.java
+index 85e20366beb7c44c938aa1e9bc2a806ddfa173a0..4bb72708cbc92274451c52e2d44157ebd5ed313b 100644
+--- a/net/minecraft/world/entity/boss/enderdragon/phases/DragonDeathPhase.java
++++ b/net/minecraft/world/entity/boss/enderdragon/phases/DragonDeathPhase.java
+@@ -6,7 +6,6 @@ import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+ import net.minecraft.world.level.levelgen.Heightmap;
+-import net.minecraft.world.level.levelgen.feature.EndPodiumFeature;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class DragonDeathPhase extends AbstractDragonPhaseInstance {
+@@ -34,7 +33,7 @@ public class DragonDeathPhase extends AbstractDragonPhaseInstance {
+     public void doServerTick(ServerLevel level) {
+         this.time++;
+         if (this.targetLocation == null) {
+-            BlockPos heightmapPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
++            BlockPos heightmapPos = this.dragon.calculateLandPosition(level, Heightmap.Types.MOTION_BLOCKING); // MoraPaper - Allow changing the EnderDragon podium
+             this.targetLocation = Vec3.atBottomCenterOf(heightmapPos);
+         }
+ 
+diff --git a/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java b/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java
+index 1afb9ff6a5546f912238b1b03aacf45033f7c481..51b14c7f52f1a46f7452ced8e1966ae0ec3df5a1 100644
+--- a/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java
++++ b/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java
+@@ -53,7 +53,7 @@ public class DragonHoldingPatternPhase extends AbstractDragonPhaseInstance {
+ 
+     private void findNewTarget(ServerLevel level) {
+         if (this.currentPath != null && this.currentPath.isDone()) {
+-            BlockPos heightmapPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
++            BlockPos heightmapPos = this.dragon.calculateLandPosition(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
+             int i = this.dragon.getDragonFight() == null ? 0 : this.dragon.getDragonFight().getCrystalsAlive();
+             if (this.dragon.getRandom().nextInt(i + 3) == 0) {
+                 this.dragon.getPhaseManager().setPhase(EnderDragonPhase.LANDING_APPROACH);
 diff --git a/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingApproachPhase.java b/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingApproachPhase.java
-index aafa99c3553a1ba35e3d7e1a7c7842ed0468e509..ef555fbb2633e40de1f8ce3f145dc0c92f936f9d 100644
+index aafa99c3553a1ba35e3d7e1a7c7842ed0468e509..4ea1675270bf24e361d225673c13c719faf46211 100644
 --- a/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingApproachPhase.java
 +++ b/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingApproachPhase.java
-@@ -8,7 +8,6 @@ import net.minecraft.world.entity.ai.targeting.TargetingConditions;
+@@ -7,8 +7,6 @@ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.entity.ai.targeting.TargetingConditions;
  import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
  import net.minecraft.world.entity.player.Player;
- import net.minecraft.world.level.levelgen.Heightmap;
+-import net.minecraft.world.level.levelgen.Heightmap;
 -import net.minecraft.world.level.levelgen.feature.EndPodiumFeature;
  import net.minecraft.world.level.pathfinder.Node;
  import net.minecraft.world.level.pathfinder.Path;
  import net.minecraft.world.phys.Vec3;
-@@ -52,7 +51,8 @@ public class DragonLandingApproachPhase extends AbstractDragonPhaseInstance {
+@@ -52,7 +50,7 @@ public class DragonLandingApproachPhase extends AbstractDragonPhaseInstance {
      private void findNewTarget(ServerLevel level) {
          if (this.currentPath == null || this.currentPath.isDone()) {
              int i = this.dragon.findClosestNode();
 -            BlockPos heightmapPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
-+            // BlockPos heightmapPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
-+            BlockPos heightmapPos = getLandPosition(level);
++            BlockPos heightmapPos = this.dragon.calculateLandPosition(level, net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
              Player nearestPlayer = level.getNearestPlayer(NEAR_EGG_TARGETING, this.dragon, heightmapPos.getX(), heightmapPos.getY(), heightmapPos.getZ());
              int i1;
              if (nearestPlayer != null) {
-@@ -75,6 +75,11 @@ public class DragonLandingApproachPhase extends AbstractDragonPhaseInstance {
+diff --git a/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingPhase.java b/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingPhase.java
+index 1ab3491a0be33ba9a0c2b4a09b766d94b106fbd5..9526d79fcf7e020fa6a236a9be901e0a629a49fd 100644
+--- a/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingPhase.java
++++ b/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingPhase.java
+@@ -50,7 +50,7 @@ public class DragonLandingPhase extends AbstractDragonPhaseInstance {
+     public void doServerTick(ServerLevel level) {
+         if (this.targetLocation == null) {
+             this.targetLocation = Vec3.atBottomCenterOf(
+-                level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()) // Paper - Allow changing the EnderDragon podium
++                this.dragon.calculateLandPosition(level, net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES)  // MoraPaper - Allow changing the EnderDragon podium
+             );
          }
-     }
  
-+    // MoraSpigot - Allow overriding of land position to ignore the heightmap position
-+    private net.minecraft.core.BlockPos getLandPosition(final net.minecraft.server.level.ServerLevel level) {
-+        return level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
-+    }
-+
-     private void navigateToNextPathNode() {
-         if (this.currentPath != null && !this.currentPath.isDone()) {
-             Vec3i nextNodePos = this.currentPath.getNextNodePos();
+diff --git a/net/minecraft/world/entity/boss/enderdragon/phases/DragonTakeoffPhase.java b/net/minecraft/world/entity/boss/enderdragon/phases/DragonTakeoffPhase.java
+index d0142ec67dad3b41ae0a693df614956e8ddabd9c..be3f808374e458b69276839db1041d9e7aea4f49 100644
+--- a/net/minecraft/world/entity/boss/enderdragon/phases/DragonTakeoffPhase.java
++++ b/net/minecraft/world/entity/boss/enderdragon/phases/DragonTakeoffPhase.java
+@@ -24,7 +24,7 @@ public class DragonTakeoffPhase extends AbstractDragonPhaseInstance {
+     @Override
+     public void doServerTick(ServerLevel level) {
+         if (!this.firstTick && this.currentPath != null) {
+-            BlockPos heightmapPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
++            BlockPos heightmapPos = this.dragon.calculateLandPosition(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
+             if (!heightmapPos.closerToCenterThan(this.dragon.position(), 10.0)) {
+                 this.dragon.getPhaseManager().setPhase(EnderDragonPhase.HOLDING_PATTERN);
+             }
 diff --git a/net/minecraft/world/entity/monster/Monster.java b/net/minecraft/world/entity/monster/Monster.java
 index 5ef9566b16a4d0300ee45a993c46e734db156416..6562b362f62f362b6faf9f9d1c7d0b6576a217f7 100644
 --- a/net/minecraft/world/entity/monster/Monster.java
