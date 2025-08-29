@@ -679,10 +679,53 @@ index 859b859d29b637200cf7c9a0bd52d9f712413e3d..b77c5b992fb09518f3da352af0a0a424
  
      public boolean hasTasks() {
 diff --git a/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java b/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
-index 84d215a498d9bf6f1232bf4af5a4a98d3ba9b131..a4b42a5b6b58fd3b3e7e908eaed2e88b14675a6c 100644
+index 84d215a498d9bf6f1232bf4af5a4a98d3ba9b131..285c0c7428c9a2d9aa9a543ae4a7ad01dd150d51 100644
 --- a/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
 +++ b/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
-@@ -900,7 +900,7 @@ public class EnderDragon extends Mob implements Enemy {
+@@ -674,6 +674,18 @@ public class EnderDragon extends Mob implements Enemy {
+         }
+     }
+ 
++    protected float getFirstSearchRadius() {
++        return 60.0F;
++    }
++
++    protected float getSecondSearchRadius() {
++        return 40.0F;
++    }
++
++    protected float getThirdSearchRadius() {
++        return 20.0F;
++    }
++
+     public int findClosestNode() {
+         if (this.nodes[0] == null) {
+             for (int i = 0; i < 24; i++) {
+@@ -681,17 +693,17 @@ public class EnderDragon extends Mob implements Enemy {
+                 int floor;
+                 int floor1;
+                 if (i < 12) {
+-                    floor = Mth.floor(60.0F * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * i)));
+-                    floor1 = Mth.floor(60.0F * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * i)));
++                    floor = Mth.floor(getFirstSearchRadius() * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * i)));
++                    floor1 = Mth.floor(getFirstSearchRadius() * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * i)));
+                 } else if (i < 20) {
+                     int i2 = i - 12;
+-                    floor = Mth.floor(40.0F * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * i2)));
+-                    floor1 = Mth.floor(40.0F * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * i2)));
++                    floor = Mth.floor(getSecondSearchRadius() * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * i2)));
++                    floor1 = Mth.floor(getSecondSearchRadius() * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * i2)));
+                     i1 += 10;
+                 } else {
+                     int var7 = i - 20;
+-                    floor = Mth.floor(20.0F * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * var7)));
+-                    floor1 = Mth.floor(20.0F * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * var7)));
++                    floor = Mth.floor(getThirdSearchRadius() * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * var7)));
++                    floor1 = Mth.floor(getThirdSearchRadius() * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * var7)));
+                 }
+ 
+                 int max = Math.max(73, this.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(floor, 0, floor1)).getY() + i1);
+@@ -900,7 +912,7 @@ public class EnderDragon extends Mob implements Enemy {
          EnderDragonPhase<? extends DragonPhaseInstance> phase = currentPhase.getPhase();
          Vec3 viewVector;
          if (phase == EnderDragonPhase.LANDING || phase == EnderDragonPhase.TAKEOFF) {
@@ -691,7 +734,7 @@ index 84d215a498d9bf6f1232bf4af5a4a98d3ba9b131..a4b42a5b6b58fd3b3e7e908eaed2e88b
              float max = Math.max((float)Math.sqrt(heightmapPos.distToCenterSqr(this.position())) / 4.0F, 1.0F);
              float f = 6.0F / max;
              float xRot = this.getXRot();
-@@ -1002,5 +1002,11 @@ public class EnderDragon extends Mob implements Enemy {
+@@ -1002,5 +1014,11 @@ public class EnderDragon extends Mob implements Enemy {
  
          return flag ? i : 0;
      }
