@@ -66,7 +66,7 @@ public class MoraPaper {
             }
         }
 
-        mob.nearestPlayerData.uuid = nearestPlayer != null ? nearestPlayer.gameProfile.getId() : null;
+        mob.nearestPlayerData.uuid = nearestPlayer != null ? nearestPlayer.gameProfile.id() : null;
         mob.nearestPlayerData.distanceSqr = minDistance;
         mob.nearestPlayerData.dy = Math.abs(minDy);
         mob.nearestPlayerData.dxSqr = minDxSqr;
