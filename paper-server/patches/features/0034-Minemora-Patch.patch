@@ -602,10 +602,18 @@ index 0c52e315557e1dae6a852694786e72241fff1e29..211817065d70866a916b7902f45dcd1a
 +    }
  }
 diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
-index e0b3cb2b2694768803ed347a1026b881fd624951..5ae62d8239de38a8afa87e33b1d252f1dea34723 100644
+index e0b3cb2b2694768803ed347a1026b881fd624951..cae8cca87ead3b0eccd4d0f687a813ed5cf6d124 100644
 --- a/net/minecraft/world/entity/Mob.java
 +++ b/net/minecraft/world/entity/Mob.java
-@@ -506,8 +506,13 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+@@ -140,6 +140,7 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+     private int homeRadius = -1;
+     public boolean aware = true; // CraftBukkit
+     public net.kyori.adventure.util.TriState despawnInPeacefulOverride = net.kyori.adventure.util.TriState.NOT_SET; // Paper - allow changing despawnInPeaceful
++    public boolean ignoreDisableAI = false;
+ 
+     protected Mob(EntityType<? extends Mob> entityType, Level level) {
+         super(entityType, level);
+@@ -506,8 +507,13 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
          this.resetAngularLeashMomentum();
      }
  
@@ -614,12 +622,12 @@ index e0b3cb2b2694768803ed347a1026b881fd624951..5ae62d8239de38a8afa87e33b1d252f1
 +
      @Override
      public void aiStep() {
-+        if(nearestPlayerData.distanceSqr > distanceSqrToDisableAi) return;
++        if (!ignoreDisableAI && (nearestPlayerData.distanceSqr > distanceSqrToDisableAi)) return;
 +
          super.aiStep();
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("looting");
-@@ -708,21 +713,39 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+@@ -708,21 +714,39 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
          return false;
      }
  
