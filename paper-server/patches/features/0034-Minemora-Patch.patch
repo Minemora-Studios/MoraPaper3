@@ -894,14 +894,14 @@ index d0142ec67dad3b41ae0a693df614956e8ddabd9c..701873f0e84a07eeb81a9a7e70ec4967
              i1 %= 12;
              if (i1 < 0) {
 diff --git a/net/minecraft/world/entity/monster/Monster.java b/net/minecraft/world/entity/monster/Monster.java
-index 5ef9566b16a4d0300ee45a993c46e734db156416..6562b362f62f362b6faf9f9d1c7d0b6576a217f7 100644
+index 5ef9566b16a4d0300ee45a993c46e734db156416..9621e2fea6e748a1b8b60fd7c5ad942024941e3b 100644
 --- a/net/minecraft/world/entity/monster/Monster.java
 +++ b/net/minecraft/world/entity/monster/Monster.java
 @@ -40,6 +40,7 @@ public abstract class Monster extends PathfinderMob implements Enemy {
  
      @Override
      public void aiStep() {
-+        if (nearestPlayerData.distanceSqr > distanceSqrToDisableAi) return;
++        if (!ignoreDisableAI && (nearestPlayerData.distanceSqr > distanceSqrToDisableAi)) return;
          this.updateSwingTime();
          this.updateNoActionTime();
          super.aiStep();
