@@ -60,6 +60,7 @@ import org.bukkit.entity.Allay;
 import org.bukkit.entity.AreaEffectCloud;
 import org.bukkit.entity.Armadillo;
 import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.ArmorStandMonster;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Axolotl;
 import org.bukkit.entity.Bat;
@@ -279,6 +280,7 @@ public final class CraftEntityTypes {
         register(new EntityTypeData<>(EntityType.SKELETON_HORSE, SkeletonHorse.class, CraftSkeletonHorse::new, createLiving(net.minecraft.world.entity.EntityType.SKELETON_HORSE)));
         register(new EntityTypeData<>(EntityType.ZOMBIE_HORSE, ZombieHorse.class, CraftZombieHorse::new, createLiving(net.minecraft.world.entity.EntityType.ZOMBIE_HORSE)));
         register(new EntityTypeData<>(EntityType.ARMOR_STAND, ArmorStand.class, CraftArmorStand::new, createLiving(net.minecraft.world.entity.EntityType.ARMOR_STAND)));
+        register(new EntityTypeData<>(EntityType.ARMOR_STAND_MONSTER, ArmorStandMonster.class, CraftArmorStandMonster::new, createLiving(net.minecraft.world.entity.EntityType.ARMOR_STAND_MONSTER)));
         register(new EntityTypeData<>(EntityType.DONKEY, Donkey.class, CraftDonkey::new, createLiving(net.minecraft.world.entity.EntityType.DONKEY)));
         register(new EntityTypeData<>(EntityType.MULE, Mule.class, CraftMule::new, createLiving(net.minecraft.world.entity.EntityType.MULE)));
         register(new EntityTypeData<>(EntityType.EVOKER, Evoker.class, CraftEvoker::new, createLiving(net.minecraft.world.entity.EntityType.EVOKER)));

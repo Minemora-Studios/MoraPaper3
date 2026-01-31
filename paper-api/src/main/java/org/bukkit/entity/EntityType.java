@@ -53,6 +53,7 @@ public enum EntityType implements Keyed, Translatable, net.kyori.adventure.trans
     AREA_EFFECT_CLOUD("area_effect_cloud", AreaEffectCloud.class, 3),
     ARMADILLO("armadillo", Armadillo.class, -1),
     ARMOR_STAND("armor_stand", ArmorStand.class, 30),
+    ARMOR_STAND_MONSTER("armor_stand_monster", ArmorStandMonster.class, 30),
     ARROW("arrow", Arrow.class, 10),
     AXOLOTL("axolotl", Axolotl.class, -1),
     BAMBOO_CHEST_RAFT("bamboo_chest_raft", BambooChestRaft.class, -1),
