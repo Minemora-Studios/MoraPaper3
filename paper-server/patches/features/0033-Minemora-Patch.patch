@@ -5,10 +5,10 @@ Subject: [PATCH] Minemora Patch
 
 
 diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
-index 6ce4a98e4d3b633e3c87944c23b6b3f0ff58f159..6fcf25398d29f161a0769b4e9881fd4b5b4cf9f9 100644
+index 05d374f679919d082064e8f2bb363a419bc9648e..7d9f48fbe2456ebb616468a8e79bfaaf4fe3e1ab 100644
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
-@@ -68,6 +68,9 @@ public final class ChunkHolderManager {
+@@ -70,6 +70,9 @@ public final class ChunkHolderManager {
      public static final int ENTITY_TICKING_TICKET_LEVEL = ChunkLevel.ENTITY_TICKING_LEVEL;
      public static final int MAX_TICKET_LEVEL = ChunkLevel.MAX_LEVEL; // inclusive
  
@@ -18,22 +18,24 @@ index 6ce4a98e4d3b633e3c87944c23b6b3f0ff58f159..6fcf25398d29f161a0769b4e9881fd4b
      public static final TicketType UNLOAD_COOLDOWN = ChunkSystemTicketType.create("chunk_system:unload_cooldown", null, 5L * 20L);
  
      private static final long NO_TIMEOUT_MARKER = Long.MIN_VALUE;
-@@ -1194,7 +1197,9 @@ public final class ChunkHolderManager {
+@@ -1181,10 +1184,8 @@ public final class ChunkHolderManager {
          // We do need to process updates here so that any addTicket that is synchronised before this call does not go missed.
          this.processTicketUpdates();
  
--        final int toUnloadCount = Math.max(50, (int)(unloadCountTentative * 0.05));
+-        final int toUnloadCount = Math.max(
+-            PlatformHooks.get().configMinChunkUnloadCount(this.world),
+-            (int)Math.round(unloadCountTentative * Math.clamp(PlatformHooks.get().configMinChunkUnloadFraction(this.world), 0.0, 1.0))
+-        );
 +        // MoraPaper - Limit chunk unload to prevent RAM overuse
 +        final int toUnloadCount = Math.max(50,Math.min(MAX_CHUNK_UNLOADS_PER_TICK, (int) (unloadCountTentative * 0.05)));
-+
          int processedCount = 0;
  
          for (final ChunkUnloadQueue.SectionToUnload sectionRef : unloadSectionsForRegion) {
 diff --git a/net/minecraft/data/loot/packs/VanillaEntityLoot.java b/net/minecraft/data/loot/packs/VanillaEntityLoot.java
-index f7556280a22c4a42db3db818178e832eb65ae811..18dc9db050d4c0204d12aab89b92bba5594acf66 100644
+index d5eef32f04e6e83ed6708bfcbcd87ed1575404df..8b627ecda50e553780b75a81c34aacde7b1c34da 100644
 --- a/net/minecraft/data/loot/packs/VanillaEntityLoot.java
 +++ b/net/minecraft/data/loot/packs/VanillaEntityLoot.java
-@@ -54,6 +54,7 @@ public class VanillaEntityLoot extends EntityLootSubProvider {
+@@ -55,6 +55,7 @@ public class VanillaEntityLoot extends EntityLootSubProvider {
          this.add(EntityType.ALLAY, LootTable.lootTable());
          this.add(EntityType.ARMADILLO, LootTable.lootTable());
          this.add(EntityType.ARMOR_STAND, LootTable.lootTable());
@@ -42,34 +44,34 @@ index f7556280a22c4a42db3db818178e832eb65ae811..18dc9db050d4c0204d12aab89b92bba5
          this.add(EntityType.BAT, LootTable.lootTable());
          this.add(EntityType.BEE, LootTable.lootTable());
 diff --git a/net/minecraft/network/chat/OutgoingChatMessage.java b/net/minecraft/network/chat/OutgoingChatMessage.java
-index 4635182c73f28f63ba84982cb6bcb422221b738e..eb40e9b8051c7e159146104383a747d1c3c26566 100644
+index 259cbcbdd3cd47907629772dc7565212bb434729..e10c71cab9ebbc48b5303bb832672c42aa2ad9cc 100644
 --- a/net/minecraft/network/chat/OutgoingChatMessage.java
 +++ b/net/minecraft/network/chat/OutgoingChatMessage.java
-@@ -26,6 +26,9 @@ public interface OutgoingChatMessage {
-             this.sendToPlayer(player, filtered, boundType, null);
+@@ -25,6 +25,9 @@ public interface OutgoingChatMessage {
          }
-         public void sendToPlayer(ServerPlayer player, boolean filtered, ChatType.Bound boundType, @javax.annotation.Nullable Component unsigned) {
+         @Override
+         public void sendToPlayer(final ServerPlayer player, final boolean filtered, final ChatType.Bound chatType, final @org.jspecify.annotations.Nullable Component unsigned) {
 +            // MoraPaper
 +            if (player.chatDisabled) return;
 +
-             player.connection.sendDisguisedChatMessage(unsigned != null ? unsigned : this.content, boundType);
+             player.connection.sendDisguisedChatMessage(unsigned != null ? unsigned : this.content, chatType);
              // Paper end
          }
 @@ -43,6 +46,9 @@ public interface OutgoingChatMessage {
-             this.sendToPlayer(player, filtered, boundType, null);
          }
-         public void sendToPlayer(ServerPlayer player, boolean filtered, ChatType.Bound boundType, @javax.annotation.Nullable Component unsigned) {
+         @Override
+         public void sendToPlayer(final ServerPlayer player, final boolean filtered, final ChatType.Bound chatType, final @org.jspecify.annotations.Nullable Component unsigned) {
 +            // MoraPaper
 +            if (player.chatDisabled) return;
 +
              // Paper end
-             PlayerChatMessage playerChatMessage = this.message.filter(filtered);
-             playerChatMessage = unsigned != null ? playerChatMessage.withUnsignedContent(unsigned) : playerChatMessage; // Paper
+             PlayerChatMessage filteredMessage = this.message.filter(filtered);
+             filteredMessage = unsigned != null ? filteredMessage.withUnsignedContent(unsigned) : filteredMessage; // Paper
 diff --git a/net/minecraft/network/protocol/game/ClientboundPlayerInfoUpdatePacket.java b/net/minecraft/network/protocol/game/ClientboundPlayerInfoUpdatePacket.java
-index d13d67a3925f96a2a27159d303e8c19478971bd7..6b4dde35e530c964aa605f0f64e00c6a24ceb474 100644
+index aaa497096f07f2ef9da62b9760f5c9aa0b0263d3..58cfca970db9b2f045e00cc012741208fbdab5b1 100644
 --- a/net/minecraft/network/protocol/game/ClientboundPlayerInfoUpdatePacket.java
 +++ b/net/minecraft/network/protocol/game/ClientboundPlayerInfoUpdatePacket.java
-@@ -228,7 +228,7 @@ public class ClientboundPlayerInfoUpdatePacket implements Packet<ClientGamePacke
+@@ -226,7 +226,7 @@ public class ClientboundPlayerInfoUpdatePacket implements Packet<ClientGamePacke
                  player.getUUID(),
                  player.getGameProfile(),
                  listed, // Paper - Add Listing API for Player
@@ -79,11 +81,11 @@ index d13d67a3925f96a2a27159d303e8c19478971bd7..6b4dde35e530c964aa605f0f64e00c6a
                  player.getTabListDisplayName(),
                  player.isModelPartShown(PlayerModelPart.HAT),
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index 574a7c232150642ee6872ce9da3bf742673066ee..576f0968a6bbf17a05c058a0ac747d41831a0464 100644
+index cc35c6271c98615a486422d0490145227626bd85..ea01a1cf0bf4c8edf7d9a500eeee98b119f82c9d 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -1661,14 +1661,14 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
-         this.getPlayerList().getPlayers().forEach(serverPlayer1 -> serverPlayer1.connection.suspendFlushing());
+@@ -1791,14 +1791,14 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         this.getPlayerList().getPlayers().forEach(playerx -> playerx.connection.suspendFlushing());
          this.server.getScheduler().mainThreadHeartbeat(); // CraftBukkit
          // Paper start - optimise Folia entity scheduler
 -        ((io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler)org.bukkit.Bukkit.getGlobalRegionScheduler()).tick();
@@ -103,13 +105,13 @@ index 574a7c232150642ee6872ce9da3bf742673066ee..576f0968a6bbf17a05c058a0ac747d41
 +        //     scheduler.executeTick();
 +        // }
          // Paper end - optimise Folia entity scheduler
+         // Paper end - Folia scheduler API
          io.papermc.paper.adventure.providers.ClickCallbackProviderImpl.ADVENTURE_CLICK_MANAGER.handleQueue(this.tickCount); // Paper
-         io.papermc.paper.adventure.providers.ClickCallbackProviderImpl.DIALOG_CLICK_MANAGER.handleQueue(this.tickCount); // Paper
 diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
-index eb352aa4296abc3ed4cf31c590bc0be66daf4de3..555b2a0612306be07efde1fb2ba7a85c9b6b4c16 100644
+index 42ec67c53c35189838ce4767c2be620e05108159..cc714ddf92886db013fa83f96e7f598a6862f7f3 100644
 --- a/net/minecraft/server/level/ChunkMap.java
 +++ b/net/minecraft/server/level/ChunkMap.java
-@@ -1176,11 +1176,16 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1242,11 +1242,16 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
              }
  
              if (lastChunkUpdate != currChunkUpdate || lastTrackedChunk != chunk) {
@@ -128,7 +130,7 @@ index eb352aa4296abc3ed4cf31c590bc0be66daf4de3..555b2a0612306be07efde1fb2ba7a85c
                      }
                  }
              }
-@@ -1278,6 +1283,12 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1350,6 +1355,12 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
              }
          }
  
@@ -138,31 +140,14 @@ index eb352aa4296abc3ed4cf31c590bc0be66daf4de3..555b2a0612306be07efde1fb2ba7a85c
 +            this.serverEntity.removePairing(player);
 +        }
 +
-         public void updatePlayer(ServerPlayer player) {
+         public void updatePlayer(final ServerPlayer player) {
              org.spigotmc.AsyncCatcher.catchOp("player tracker update"); // Spigot
              if (player != this.entity) {
 diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
-index 2882cd829d4d8e1f8615f085f6908efcdf68ac62..caee337cd7e2759c1c1c65527f28553e4320f6f9 100644
+index 396ab3cdcf6f726ce7133395bb39594ef4b1c011..8afcdca53c2ac08da808f732f63e4cee88ac3421 100644
 --- a/net/minecraft/server/level/ServerChunkCache.java
 +++ b/net/minecraft/server/level/ServerChunkCache.java
-@@ -82,6 +82,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-     public int getFullChunksCount() {
-         return this.fullChunks.size();
-     }
-+
-     long chunkFutureAwaitCounter;
-     // Paper end
-     // Paper start - rewrite chunk system
-@@ -102,7 +103,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-     }
- 
-     private ChunkAccess syncLoad(final int chunkX, final int chunkZ, final ChunkStatus toStatus) {
--        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler chunkTaskScheduler = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler();
-+        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler chunkTaskScheduler = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler();
-         final CompletableFuture<ChunkAccess> completable = new CompletableFuture<>();
-         chunkTaskScheduler.scheduleChunkLoad(
-             chunkX, chunkZ, toStatus, true, ca.spottedleaf.concurrentutil.util.Priority.BLOCKING,
-@@ -130,9 +131,11 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -128,9 +128,11 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
          return ret;
      }
  
@@ -177,123 +162,7 @@ index 2882cd829d4d8e1f8615f085f6908efcdf68ac62..caee337cd7e2759c1c1c65527f28553e
          final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager chunkHolderManager = chunkTaskScheduler.chunkHolderManager;
  
          final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder currentChunk = chunkHolderManager.getChunkHolder(ca.spottedleaf.moonrise.common.util.CoordinateUtils.getChunkKey(chunkX, chunkZ));
-@@ -154,16 +157,18 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
- 
-         return load ? this.syncLoad(chunkX, chunkZ, toStatus) : null;
-     }
-+
-     // Paper end - rewrite chunk system
-     // Paper start - chunk tick iteration optimisations
-     private final ca.spottedleaf.moonrise.common.util.SimpleThreadUnsafeRandom shuffleRandom = new ca.spottedleaf.moonrise.common.util.SimpleThreadUnsafeRandom(0L);
-+
-     private void iterateTickingChunksFaster() {
-         final ServerLevel world = this.level;
-         final int randomTickSpeed = world.getGameRules().getInt(GameRules.RULE_RANDOMTICKING);
- 
-         // TODO check on update: impl of forEachBlockTickingChunk will only iterate ENTITY ticking chunks!
-         // TODO check on update: consumer just runs tickChunk
--        final ca.spottedleaf.moonrise.common.list.ReferenceList<net.minecraft.world.level.chunk.LevelChunk> entityTickingChunks = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)world).moonrise$getEntityTickingChunks();
-+        final ca.spottedleaf.moonrise.common.list.ReferenceList<net.minecraft.world.level.chunk.LevelChunk> entityTickingChunks = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) world).moonrise$getEntityTickingChunks();
- 
-         // note: we can use the backing array here because:
-         // 1. we do not care about new additions
-@@ -177,7 +182,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
- 
-             // call mid-tick tasks for chunk system
-             if ((i & 7) == 0) {
--                ((ca.spottedleaf.moonrise.patches.chunk_system.server.ChunkSystemMinecraftServer)this.level.getServer()).moonrise$executeMidTickTasks();
-+                ((ca.spottedleaf.moonrise.patches.chunk_system.server.ChunkSystemMinecraftServer) this.level.getServer()).moonrise$executeMidTickTasks();
-                 continue;
-             }
-         }
-@@ -207,7 +212,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-         try {
-             FileUtil.createDirectoriesSafe(path);
-         } catch (IOException var15) {
--            LOGGER.error("Failed to create dimension data storage directory", (Throwable)var15);
-+            LOGGER.error("Failed to create dimension data storage directory", (Throwable) var15);
-         }
- 
-         this.dataStorage = new DimensionDataStorage(new SavedData.Context(level), path, fixerUpper, level.registryAccess());
-@@ -343,7 +348,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-             return ret;
-         }
- 
--        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder holder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler()
-+        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder holder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler()
-             .chunkHolderManager.getChunkHolder(chunkX, chunkZ);
-         if (holder == null) {
-             return ret;
-@@ -369,7 +374,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-             chunkFutureMainThread = CompletableFuture.<CompletableFuture<ChunkResult<ChunkAccess>>>supplyAsync(
-                     () -> this.getChunkFutureMainThread(x, z, chunkStatus, requireChunk), this.mainThreadProcessor
-                 )
--                .thenCompose(future -> (CompletionStage<ChunkResult<ChunkAccess>>)future);
-+                .thenCompose(future -> (CompletionStage<ChunkResult<ChunkAccess>>) future);
-         }
- 
-         return chunkFutureMainThread;
-@@ -380,7 +385,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.level, x, z, "Scheduling chunk load off-main");
- 
-         final int minLevel = ChunkLevel.byStatus(chunkStatus);
--        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder chunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(x, z);
-+        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder chunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(x, z);
- 
-         final boolean needsFullScheduling = chunkStatus == ChunkStatus.FULL && (chunkHolder == null || !chunkHolder.getChunkStatus().isOrAfter(FullChunkStatus.FULL));
- 
-@@ -400,7 +405,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-                 }
-             };
- 
--            ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().scheduleChunkLoad(
-+            ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().scheduleChunkLoad(
-                 x, z, chunkStatus, true,
-                 ca.spottedleaf.concurrentutil.util.Priority.HIGHER,
-                 complete
-@@ -423,7 +428,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-     @Override
-     public LightChunk getChunkForLighting(int chunkX, int chunkZ) {
-         // Paper start - rewrite chunk system
--        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder newChunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(chunkX, chunkZ);
-+        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder newChunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(chunkX, chunkZ);
-         if (newChunkHolder == null) {
-             return null;
-         }
-@@ -441,12 +446,12 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-     }
- 
-     public boolean runDistanceManagerUpdates() {
--        return ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.processTicketUpdates(); // Paper - rewrite chunk system
-+        return ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.processTicketUpdates(); // Paper - rewrite chunk system
-     }
- 
-     public boolean isPositionTicking(long chunkPos) {
-         // Paper start - rewrite chunk system
--        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder newChunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(chunkPos);
-+        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder newChunkHolder = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(chunkPos);
-         return newChunkHolder != null && newChunkHolder.isTickingReady();
-         // Paper end - rewrite chunk system
-     }
-@@ -466,7 +471,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-         // CraftBukkit end
-         // Paper - rewrite chunk system
-         this.dataStorage.close();
--        ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.close(save, true); // Paper - rewrite chunk system
-+        ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().chunkHolderManager.close(save, true); // Paper - rewrite chunk system
-     }
- 
-     // CraftBukkit start - modelled on below
-@@ -495,7 +500,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-         this.runDistanceManagerUpdates();
-         profilerFiller.popPush("chunks");
-         if (tickChunks) {
--            ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getPlayerChunkLoader().tick(); // Paper - rewrite chunk system
-+            ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) this.level).moonrise$getPlayerChunkLoader().tick(); // Paper - rewrite chunk system
-             this.tickChunks();
-             this.chunkMap.tick();
-         }
-@@ -538,7 +543,23 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -532,7 +534,23 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
          profiler.pop();
      }
  
@@ -303,7 +172,7 @@ index 2882cd829d4d8e1f8615f085f6908efcdf68ac62..caee337cd7e2759c1c1c65527f28553e
 +    // MoraPaper - The last time we ticked mob spawning
 +    private int ticksSinceLastSpawnUpdate = 0;
 +
-     private void tickChunks(ProfilerFiller profiler, long timeInhabited) {
+     private void tickChunks(final ProfilerFiller profiler, final long timeDiff) {
 +        ticksSinceLastSpawnUpdate++;
 +
 +        // MoraPaper - Tick without the mob spawning between the interval
@@ -314,26 +183,16 @@ index 2882cd829d4d8e1f8615f085f6908efcdf68ac62..caee337cd7e2759c1c1c65527f28553e
 +
 +        ticksSinceLastSpawnUpdate = 0;
 +
-         profiler.popPush("naturalSpawnCount");
-         int naturalSpawnChunkCount = this.distanceManager.getNaturalSpawnChunkCount();
+         profiler.push("naturalSpawnCount");
+         int chunkCount = this.distanceManager.getNaturalSpawnChunkCount();
          // Paper start - Optional per player mob spawns
-@@ -591,7 +612,8 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-             profiler.popPush("shuffleSpawningChunks");
-             // Paper start - chunk tick iteration optimisation
-             this.shuffleRandom.setSeed(this.level.random.nextLong());
--            if (!this.level.paperConfig().entities.spawning.perPlayerMobSpawns) Util.shuffle(list, this.shuffleRandom); // Paper - Optional per player mob spawns; do not need this when per-player is enabled
-+            if (!this.level.paperConfig().entities.spawning.perPlayerMobSpawns)
-+                Util.shuffle(list, this.shuffleRandom); // Paper - Optional per player mob spawns; do not need this when per-player is enabled
-             // Paper end - chunk tick iteration optimisation
-             profiler.popPush("tickSpawningChunks");
- 
-@@ -619,12 +641,21 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -615,12 +633,21 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
          }
  
-         if (!spawnCategories.isEmpty()) {
--            if (this.level.getWorldBorder().isWithinBounds(pos)) { // Paper - rewrite chunk system
-+            if (this.level.getWorldBorder().isWithinBounds(pos) && !isInNoNaturalSpawnRadius(pos)) { // Paper - rewrite chunk system
-                 NaturalSpawner.spawnForChunk(this.level, chunk, spawnState, spawnCategories);
+         if (!spawningCategories.isEmpty()) {
+-            if (this.level.getWorldBorder().isWithinBounds(chunkPos)) { // Paper - rewrite chunk system
++            if (this.level.getWorldBorder().isWithinBounds(chunkPos) && !isInNoNaturalSpawnRadius(chunkPos)) { // Paper - rewrite chunk system
+                 NaturalSpawner.spawnForChunk(this.level, chunk, spawnCookie, spawningCategories);
              }
          }
      }
@@ -341,39 +200,39 @@ index 2882cd829d4d8e1f8615f085f6908efcdf68ac62..caee337cd7e2759c1c1c65527f28553e
 +    // MoraPaper Start - Limit natural spawn radius
 +    public static boolean isInNoNaturalSpawnRadius(ChunkPos pos) {
 +        int radius = 10; //TODO from config
-+        int x = pos.x;
-+        int z = pos.z;
++        int x = pos.x();
++        int z = pos.z();
 +        return x >= -radius && x < radius && z >= -radius && z < radius;
 +    }
 +    // MoraPaper End
 +
-     private void getFullChunk(long chunkPos, Consumer<LevelChunk> fullChunkGetter) {
+     private void getFullChunk(final long chunkKey, final Consumer<LevelChunk> output) {
          // Paper start - rewrite chunk system
          // note: bypass currentlyLoaded from getChunkNow
 diff --git a/net/minecraft/server/level/ServerEntity.java b/net/minecraft/server/level/ServerEntity.java
-index e96d4dee14c05f2fa329bfb1588ec795d4e3d730..f820e0ba29c60cf738e0faa809fc1e83d95254f9 100644
+index 5fad52157fc22755196ce9eaddaa2bc23c5bb86b..9f343b483c4db0197611b3c900443de32cf87b05 100644
 --- a/net/minecraft/server/level/ServerEntity.java
 +++ b/net/minecraft/server/level/ServerEntity.java
-@@ -435,4 +435,5 @@ public class ServerEntity {
-             ((ServerPlayer)this.entity).connection.send(packet);
-         }
+@@ -418,4 +418,5 @@ public class ServerEntity {
+ 
+         void sendToTrackingPlayersFiltered(Packet<? super ClientGamePacketListener> packet, Predicate<ServerPlayer> predicate);
      }
 +
  }
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index dda8d38ef61672cc714d9e5a475f9b0412ed5ff9..451f946ede8333801f4bcf33c1e99be8ccb2a3ae 100644
+index 229ff740e0418a05d824a67401ae6f105b4c3642..7dec51081772e8ae9d67fe912728f9958cadc2e7 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
-@@ -177,7 +177,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -191,7 +191,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
      private static final Logger LOGGER = LogUtils.getLogger();
      private static final int EMPTY_TIME_NO_TICK = 300;
      private static final int MAX_SCHEDULED_TICKS_PER_TICK = 65536;
--    final List<ServerPlayer> players = Lists.newArrayList();
+-    private final List<ServerPlayer> players = Lists.newArrayList();
 +    final List<ServerPlayer> players = new java.util.concurrent.CopyOnWriteArrayList<>(); // MoraPaper - Use CopyOnWriteArrayList for safe async loops
      public final ServerChunkCache chunkSource;
      private final MinecraftServer server;
-     public final net.minecraft.world.level.storage.PrimaryLevelData serverLevelData; // CraftBukkit - type
-@@ -565,6 +565,11 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+     public final io.papermc.paper.world.saveddata.PaperLevelOverrides serverLevelData; // Paper - type
+@@ -604,6 +604,11 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
      }
      // Paper end - chunk tick iteration
  
@@ -383,9 +242,9 @@ index dda8d38ef61672cc714d9e5a475f9b0412ed5ff9..451f946ede8333801f4bcf33c1e99be8
 +    }
 +
      public ServerLevel(
-         MinecraftServer server,
-         Executor dispatcher,
-@@ -675,6 +680,8 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+         final MinecraftServer server,
+         final Executor executor,
+@@ -738,6 +743,8 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
          this.chunkDataController = new ca.spottedleaf.moonrise.patches.chunk_system.io.datacontroller.ChunkDataController((ServerLevel)(Object)this, this.chunkTaskScheduler);
          // Paper end - rewrite chunk system
          this.getCraftServer().addWorld(this.getWorld()); // CraftBukkit
@@ -394,118 +253,25 @@ index dda8d38ef61672cc714d9e5a475f9b0412ed5ff9..451f946ede8333801f4bcf33c1e99be8
      }
  
      // Paper start
-@@ -836,9 +843,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
-         if (this.tickTime) {
-             long l = this.levelData.getGameTime() + 1L;
-             this.serverLevelData.setGameTime(l);
--            Profiler.get().push("scheduledFunctions");
-             this.serverLevelData.getScheduledEvents().tick(this.server, l);
--            Profiler.get().pop();
-             if (this.serverLevelData.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)) {
-                 this.setDayTime(this.levelData.getDayTime() + 1L);
-             }
-@@ -917,8 +922,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
-         ChunkPos pos = chunk.getPos();
-         int minBlockX = pos.getMinBlockX();
-         int minBlockZ = pos.getMinBlockZ();
--        ProfilerFiller profilerFiller = Profiler.get();
--        profilerFiller.push("iceandsnow");
- 
-         if (!this.paperConfig().environment.disableIceAndSnow) { // Paper - Option to disable ice and snow
-         for (int i = 0; i < randomTickSpeed; i++) {
-@@ -928,12 +931,9 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
-         }
-         } // Paper - Option to disable ice and snow
- 
--        profilerFiller.popPush("tickBlocks");
-         if (randomTickSpeed > 0) {
-             this.optimiseRandomTick(chunk, randomTickSpeed); // Paper - optimise random ticking
-         }
--
--        profilerFiller.pop();
-     }
- 
-     public void tickThunder(LevelChunk chunk) {
-@@ -941,15 +941,14 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
-         boolean isRaining = this.isRaining();
-         int minBlockX = pos.getMinBlockX();
-         int minBlockZ = pos.getMinBlockZ();
--        ProfilerFiller profilerFiller = Profiler.get();
--        profilerFiller.push("thunder");
-         if (!this.paperConfig().environment.disableThunder && isRaining && this.isThundering() && this.spigotConfig.thunderChance > 0 && this.random.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot // Paper - Option to disable thunder
-             BlockPos blockPos = this.findLightningTargetAround(this.getBlockRandomPos(minBlockX, 0, minBlockZ, 15));
-             if (this.isRainingAt(blockPos)) {
-                 DifficultyInstance currentDifficultyAt = this.getCurrentDifficultyAt(blockPos);
-                 boolean flag = this.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)
-                     && this.random.nextDouble() < currentDifficultyAt.getEffectiveDifficulty() * this.paperConfig().entities.spawning.skeletonHorseThunderSpawnChance.or(0.01) // Paper - Configurable spawn chances for skeleton horses
--                    && !this.getBlockState(blockPos.below()).is(Blocks.LIGHTNING_ROD);
-+                    && !this.getBlockState(blockPos.below()).is(Blocks.LIGHTNING_ROD)
-+                    && !ServerChunkCache.isInNoNaturalSpawnRadius(pos);
-                 if (flag) {
-                     SkeletonHorse skeletonHorse = EntityType.SKELETON_HORSE.create(this, EntitySpawnReason.EVENT);
-                     if (skeletonHorse != null) {
-@@ -968,8 +967,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
-                 }
-             }
-         }
--
--        profilerFiller.pop();
-     }
- 
-     @VisibleForTesting
-@@ -1267,17 +1264,13 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
-             }
-             // Paper end - log detailed entity tick information
-         entity.setOldPosAndRot();
--        ProfilerFiller profilerFiller = Profiler.get();
-         entity.tickCount++;
-         entity.totalEntityAge++; // Paper - age-like counter for all entities
--        profilerFiller.push(() -> BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString());
--        profilerFiller.incrementCounter("tickNonPassenger");
-         final boolean isActive = io.papermc.paper.entity.activation.ActivationRange.checkIfActive(entity); // Paper - EAR 2
-         if (isActive) { // Paper - EAR 2
-         entity.tick();
-         entity.postTick(); // CraftBukkit
-         } else {entity.inactiveTick();} // Paper - EAR 2
--        profilerFiller.pop();
- 
-         for (Entity entity1 : entity.getPassengers()) {
-             this.tickPassenger(entity, entity1, isActive); // Paper - EAR 2
-@@ -1298,9 +1291,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
-             passengerEntity.setOldPosAndRot();
-             passengerEntity.tickCount++;
-             passengerEntity.totalEntityAge++; // Paper - age-like counter for all entities
--            ProfilerFiller profilerFiller = Profiler.get();
--            profilerFiller.push(() -> BuiltInRegistries.ENTITY_TYPE.getKey(passengerEntity.getType()).toString());
--            profilerFiller.incrementCounter("tickPassenger");
-             // Paper start - EAR 2
-             if (isActive) {
-             passengerEntity.rideTick();
-@@ -1312,7 +1302,6 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
-                 ridingEntity.positionRider(passengerEntity);
-             }
-             // Paper end - EAR 2
--            profilerFiller.pop();
- 
-             for (Entity entity : passengerEntity.getPassengers()) {
-                 this.tickPassenger(passengerEntity, entity, isActive); // Paper - EAR 2
-@@ -1437,6 +1426,11 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -1528,6 +1535,13 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
          });
      }
  
++    // MoraPaper - start
 +    public void disableDragon() {
 +        this.dragonFight = null;
 +        this.paperConfig().entities.spawning.scanForLegacyEnderDragon = false;
 +    }
++    // MoraPaper - end
 +
      public List<? extends EnderDragon> getDragons() {
          return this.getEntities(EntityType.ENDER_DRAGON, LivingEntity::isAlive);
      }
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 8f94c963f2c59668d72d162f46f7505d6a6b06a5..9f39c89bb2575a0ad149e710c1cabb379570f3a6 100644
+index 60ff8173750b57aa05bb19a3dd1c744f870f59a5..c54e42c4b733ea47fcc94b8a7cde2fbd18bf1d5e 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -222,6 +222,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -231,6 +231,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
      public final ServerPlayerGameMode gameMode;
      private final PlayerAdvancements advancements;
      private final ServerStatsCounter stats;
@@ -513,7 +279,7 @@ index 8f94c963f2c59668d72d162f46f7505d6a6b06a5..9f39c89bb2575a0ad149e710c1cabb37
      private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
      private int lastRecordedFoodLevel = Integer.MIN_VALUE;
      private int lastRecordedAirLevel = Integer.MIN_VALUE;
-@@ -478,6 +479,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -485,6 +486,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          // CraftBukkit end
      }
  
@@ -535,60 +301,69 @@ index 8f94c963f2c59668d72d162f46f7505d6a6b06a5..9f39c89bb2575a0ad149e710c1cabb37
 +    }
 +
      @Override
-     public BlockPos adjustSpawnLocation(ServerLevel level, BlockPos pos) {
-         AABB aabb = this.getDimensions(Pose.STANDING).makeBoundingBox(Vec3.ZERO);
-@@ -2214,7 +2232,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
-         this.sendSystemMessage(mesage, false);
+     public BlockPos adjustSpawnLocation(final ServerLevel level, final BlockPos spawnSuggestion) {
+         CompletableFuture<Vec3> future = PlayerSpawnFinder.findSpawn(level, spawnSuggestion);
+@@ -1529,7 +1547,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         }
+ 
+         if (newLevel.dimension() == lastDimension) {
+-            this.connection.internalTeleport(PositionMoveRotation.of(transition), transition.relatives()); // CraftBukkit  
++            this.connection.internalTeleport(PositionMoveRotation.of(transition), transition.relatives()); // CraftBukkit
+             this.connection.resetPosition();
+             transition.postTeleportTransition().onTransition(this);
+             return this;
+@@ -2391,7 +2409,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.sendOverlayMessage(Component.translatable("build.spawn_protection", pos.toShortString()).withStyle(ChatFormatting.RED));
      }
  
 +    // MoraPaper - Completely disable chat
 +    public boolean chatDisabled = false;
 +
-     public void sendSystemMessage(Component message, boolean overlay) {
+     public void sendSystemMessage(final Component message, final boolean overlay) {
 +        if (chatDisabled) return;
 +
          if (this.acceptsSystemMessages(overlay)) {
              this.connection
                  .send(
-@@ -2242,6 +2265,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
-         this.sendChatMessage(message, filtered, boundType, null);
+@@ -2419,6 +2442,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.sendChatMessage(message, filtered, chatType, null);
      }
-     public void sendChatMessage(OutgoingChatMessage message, boolean filtered, ChatType.Bound boundType, @Nullable Component unsigned) {
+     public void sendChatMessage(final OutgoingChatMessage message, final boolean filtered, final ChatType.Bound chatType, @Nullable Component unsigned) {
 +        // MoraPaper
 +        if (chatDisabled) return;
 +
          // Paper end
          if (this.acceptsChatMessages()) {
-             message.sendToPlayer(this, filtered, boundType, unsigned); // Paper
+             message.sendToPlayer(this, filtered, chatType, unsigned); // Paper
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index ca13dd72f173be6714965c506f2d48dcd3c9e569..0f8a780f695485f3e76e7897fe7e9f6045d27bc5 100644
+index 810b352503cdf56091ec6340ad72edde238fe359..5f11c419246b1ee290128fab2a87312207b758e4 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2457,8 +2457,9 @@ public class ServerGamePacketListenerImpl
-                 LastSeenMessages lastSeenMessages = this.lastSeenMessages.applyUpdate(update);
-                 var10000 = Optional.of(lastSeenMessages);
-             } catch (LastSeenMessagesValidator.ValidationException var5) {
--                LOGGER.error("Failed to validate message acknowledgements from {}: {}", this.player.getName().getString(), var5.getMessage());
+@@ -2570,8 +2570,9 @@ public class ServerGamePacketListenerImpl
+                 LastSeenMessages result = this.lastSeenMessages.applyUpdate(update);
+                 var10000 = Optional.of(result);
+             } catch (LastSeenMessagesValidator.ValidationException e) {
+-                LOGGER.error("Failed to validate message acknowledgements from {}: {}", this.player.getPlainTextName(), e.getMessage());
 -                this.disconnectAsync(CHAT_VALIDATION_FAILED, org.bukkit.event.player.PlayerKickEvent.Cause.CHAT_VALIDATION_FAILED); // Paper - kick event causes & add proper async disconnect
 +                // MoraPaper - Ignore kicks for invalid messages
-+                // LOGGER.error("Failed to validate message acknowledgements from {}: {}", this.player.getName().getString(), var5.getMessage());
++                // LOGGER.error("Failed to validate message acknowledgements from {}: {}", this.player.getPlainTextName(), e.getMessage());
 +                // this.disconnectAsync(CHAT_VALIDATION_FAILED, org.bukkit.event.player.PlayerKickEvent.Cause.CHAT_VALIDATION_FAILED); // Paper - kick event causes & add proper async disconnect
                  return Optional.empty();
              }
  
-@@ -2560,8 +2561,9 @@ public class ServerGamePacketListenerImpl
+@@ -2673,8 +2674,9 @@ public class ServerGamePacketListenerImpl
              try {
                  this.lastSeenMessages.applyOffset(packet.offset());
-             } catch (LastSeenMessagesValidator.ValidationException var5) {
--                LOGGER.error("Failed to validate message acknowledgement offset from {}: {}", this.player.getName().getString(), var5.getMessage());
+             } catch (LastSeenMessagesValidator.ValidationException e) {
+-                LOGGER.error("Failed to validate message acknowledgement offset from {}: {}", this.player.getPlainTextName(), e.getMessage());
 -                this.disconnectAsync(ServerGamePacketListenerImpl.CHAT_VALIDATION_FAILED, org.bukkit.event.player.PlayerKickEvent.Cause.CHAT_VALIDATION_FAILED); // Paper - kick event causes & add proper async disconnect
 +                // MoraPaper - Ignore kicks for invalid messages
-+                // LOGGER.error("Failed to validate message acknowledgement offset from {}: {}", this.player.getName().getString(), var5.getMessage());
++                // LOGGER.error("Failed to validate message acknowledgement offset from {}: {}", this.player.getPlainTextName(), e.getMessage());
 +                // this.disconnectAsync(ServerGamePacketListenerImpl.CHAT_VALIDATION_FAILED, org.bukkit.event.player.PlayerKickEvent.Cause.CHAT_VALIDATION_FAILED); // Paper - kick event causes & add proper async disconnect
              }
          }
      }
-@@ -2676,6 +2678,10 @@ public class ServerGamePacketListenerImpl
+@@ -2782,6 +2784,10 @@ public class ServerGamePacketListenerImpl
              return;
          }
          // CraftBukkit end
@@ -600,7 +375,7 @@ index ca13dd72f173be6714965c506f2d48dcd3c9e569..0f8a780f695485f3e76e7897fe7e9f60
          synchronized (this.messageSignatureCache) {
          this.send(
 diff --git a/net/minecraft/util/datafix/fixes/EntityHealthFix.java b/net/minecraft/util/datafix/fixes/EntityHealthFix.java
-index 78fdfa7e22c02312299e52f3ce171609b31e31eb..33828aa49e700e5c86d5e3b053f49c6bbe88eeca 100644
+index 333f0c54bac35e7916a7d36bff089c37efea4045..e603bf54791d23b7835e15672f932ca3129943d2 100644
 --- a/net/minecraft/util/datafix/fixes/EntityHealthFix.java
 +++ b/net/minecraft/util/datafix/fixes/EntityHealthFix.java
 @@ -12,6 +12,7 @@ import java.util.Set;
@@ -612,10 +387,10 @@ index 78fdfa7e22c02312299e52f3ce171609b31e31eb..33828aa49e700e5c86d5e3b053f49c6b
          "Blaze",
          "CaveSpider",
 diff --git a/net/minecraft/util/datafix/schemas/V99.java b/net/minecraft/util/datafix/schemas/V99.java
-index 159c647a735a9e216c36e1365590e904df49a308..28e7b14bf6a3b31e182634e216d14e7b7ba8c3ca 100644
+index 85851816fec58e2b304062a1df7929f5e510f0eb..f901a711a01073ac33302e27c14a4a4ac99cbf2e 100644
 --- a/net/minecraft/util/datafix/schemas/V99.java
 +++ b/net/minecraft/util/datafix/schemas/V99.java
-@@ -130,6 +130,7 @@ public class V99 extends Schema {
+@@ -128,6 +128,7 @@ public class V99 extends Schema {
              () -> DSL.optionalFields("DisplayTile", References.BLOCK_NAME.in(schema), "LastOutput", References.TEXT_COMPONENT.in(schema))
          );
          schema.registerSimple(map, "ArmorStand");
@@ -624,18 +399,18 @@ index 159c647a735a9e216c36e1365590e904df49a308..28e7b14bf6a3b31e182634e216d14e7b
          schema.registerSimple(map, "Skeleton");
          schema.registerSimple(map, "Spider");
 diff --git a/net/minecraft/world/entity/EntityType.java b/net/minecraft/world/entity/EntityType.java
-index cdf71340278e05e58bbb4ed51a432336de46e549..df629de7b5babd7ae59df7fafb4676b1617c6b51 100644
+index 1ee78f52205cbb0b254a28999f3707ccccbe998e..18feb57f878470473c62371e3079a00e029ba901 100644
 --- a/net/minecraft/world/entity/EntityType.java
 +++ b/net/minecraft/world/entity/EntityType.java
-@@ -66,6 +66,7 @@ import net.minecraft.world.entity.animal.horse.Llama;
- import net.minecraft.world.entity.animal.horse.Mule;
- import net.minecraft.world.entity.animal.horse.SkeletonHorse;
- import net.minecraft.world.entity.animal.horse.TraderLlama;
+@@ -46,6 +46,7 @@ import net.minecraft.world.entity.animal.equine.Llama;
+ import net.minecraft.world.entity.animal.equine.Mule;
+ import net.minecraft.world.entity.animal.equine.SkeletonHorse;
+ import net.minecraft.world.entity.animal.equine.TraderLlama;
 +import net.minecraft.world.entity.monster.ArmorStandMonster;
- import net.minecraft.world.entity.animal.horse.ZombieHorse;
- import net.minecraft.world.entity.animal.sheep.Sheep;
- import net.minecraft.world.entity.animal.sniffer.Sniffer;
-@@ -225,6 +226,9 @@ public class EntityType<T extends Entity> implements FeatureElement, EntityTypeT
+ import net.minecraft.world.entity.animal.equine.ZombieHorse;
+ import net.minecraft.world.entity.animal.feline.Cat;
+ import net.minecraft.world.entity.animal.feline.Ocelot;
+@@ -234,6 +235,9 @@ public class EntityType<T extends Entity> implements EntityTypeTest<Entity, T>,
      public static final EntityType<ArmorStand> ARMOR_STAND = register(
          "armor_stand", EntityType.Builder.<ArmorStand>of(ArmorStand::new, MobCategory.MISC).sized(0.5F, 1.975F).eyeHeight(1.7775F).clientTrackingRange(10)
      );
@@ -646,10 +421,10 @@ index cdf71340278e05e58bbb4ed51a432336de46e549..df629de7b5babd7ae59df7fafb4676b1
          "arrow",
          EntityType.Builder.<Arrow>of(Arrow::new, MobCategory.MISC).noLootTable().sized(0.5F, 0.5F).eyeHeight(0.13F).clientTrackingRange(4).updateInterval(20)
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
-index 0c52e315557e1dae6a852694786e72241fff1e29..211817065d70866a916b7902f45dcd1af299c547 100644
+index d10d082046e41cf937f1a439e3e7dd61cd16f326..ea489dd609129d1722cc12d9a9cc32f0a15f7d8e 100644
 --- a/net/minecraft/world/entity/LivingEntity.java
 +++ b/net/minecraft/world/entity/LivingEntity.java
-@@ -4655,4 +4655,9 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+@@ -4903,4 +4903,9 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
  
      public record Fallsounds(SoundEvent small, SoundEvent big) {
      }
@@ -660,18 +435,18 @@ index 0c52e315557e1dae6a852694786e72241fff1e29..211817065d70866a916b7902f45dcd1a
 +    }
  }
 diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
-index e0b3cb2b2694768803ed347a1026b881fd624951..cae8cca87ead3b0eccd4d0f687a813ed5cf6d124 100644
+index 8b036640be655c65852e0862e30962e443d3024d..4d7c666af384ecd41277087bc7bd94e597c20083 100644
 --- a/net/minecraft/world/entity/Mob.java
 +++ b/net/minecraft/world/entity/Mob.java
-@@ -140,6 +140,7 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+@@ -150,6 +150,7 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
      private int homeRadius = -1;
      public boolean aware = true; // CraftBukkit
      public net.kyori.adventure.util.TriState despawnInPeacefulOverride = net.kyori.adventure.util.TriState.NOT_SET; // Paper - allow changing despawnInPeaceful
 +    public boolean ignoreDisableAI = false;
  
-     protected Mob(EntityType<? extends Mob> entityType, Level level) {
-         super(entityType, level);
-@@ -506,8 +507,13 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+     protected Mob(final EntityType<? extends Mob> type, final Level level) {
+         super(type, level);
+@@ -529,8 +530,13 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
          this.resetAngularLeashMomentum();
      }
  
@@ -683,11 +458,20 @@ index e0b3cb2b2694768803ed347a1026b881fd624951..cae8cca87ead3b0eccd4d0f687a813ed
 +        if (!ignoreDisableAI && (nearestPlayerData.distanceSqr > distanceSqrToDisableAi)) return;
 +
          super.aiStep();
-         ProfilerFiller profilerFiller = Profiler.get();
-         profilerFiller.push("looting");
-@@ -708,21 +714,39 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
-         return false;
+         if (this.is(EntityTypeTags.BURN_IN_DAYLIGHT)) {
+             this.burnUndead();
+@@ -588,7 +594,7 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+         if (!this.level().isClientSide() && this.level().environmentAttributes().getValue(EnvironmentAttributes.MONSTERS_BURN, this.position())) {
+             float br = this.getLightLevelDependentMagicValue();
+             BlockPos roundedPos = BlockPos.containing(this.getX(), this.getEyeY(), this.getZ());
+-            boolean isInNonBurnableBlock = this.isInWaterOrRain() || this.isInPowderSnow || this.wasInPowderSnow;
++            boolean i<sInNonBurnableBlock = this.isInWaterOrRain() || this.isInPowderSnow || this.wasInPowderSnow;
+             if (br > 0.5F && this.random.nextFloat() * 30.0F < (br - 0.4F) * 2.0F && !isInNonBurnableBlock && this.level().canSeeSky(roundedPos)) {
+                 return true;
+             }
+@@ -758,21 +764,39 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
      }
+     // Paper end - allow changing despawnInPeaceful
  
 +    // MoraPaper
 +    public net.minemora.MoraPaper.PlayerDistanceData nearestPlayerData = new net.minemora.MoraPaper.PlayerDistanceData();
@@ -707,20 +491,20 @@ index e0b3cb2b2694768803ed347a1026b881fd624951..cae8cca87ead3b0eccd4d0f687a813ed
 +
      @Override
      public void checkDespawn() {
-         if (this.level().getDifficulty() == Difficulty.PEACEFUL && this.shouldActuallyDespawnInPeaceful()) { //Paper - allow changing despawnInPeaceful
+         if (this.level().getDifficulty() == Difficulty.PEACEFUL && this.shouldDespawnInPeaceful()) { // Paper - allow changing despawnInPeaceful
              this.discard(EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
          } else if (!this.isPersistenceRequired() && !this.requiresCustomPersistence()) {
--            Entity nearestPlayer = this.level().findNearbyPlayer(this, -1.0, EntitySelector.PLAYER_AFFECTS_SPAWNING); // Paper - Affects Spawning API
-+            Player nearestPlayer = this.getNearestPlayerNew(); // MoraPaper - Optimize get nearest player
-             if (nearestPlayer != null) {
+-            Entity player = this.level().findNearbyPlayer(this, -1.0, EntitySelector.PLAYER_AFFECTS_SPAWNING); // Paper - Affects Spawning API
++            Player player = this.getNearestPlayerNew(); // MoraPaper - Optimize get nearest player
+             if (player != null) {
                  // Paper start - Configurable despawn distances
 +                // MoraPaper Start - Use our cached nearest player distance
                  final io.papermc.paper.configuration.WorldConfiguration.Entities.Spawning.DespawnRangePair despawnRangePair = this.level().paperConfig().entities.spawning.despawnRanges.get(this.getType().getCategory());
                  final io.papermc.paper.configuration.type.DespawnRange.Shape shape = this.level().paperConfig().entities.spawning.despawnRangeShape;
--                final double dy = Math.abs(nearestPlayer.getY() - this.getY());
+-                final double dy = Math.abs(player.getY() - this.getY());
 -                final double dySqr = Mth.square(dy);
--                final double dxSqr = Mth.square(nearestPlayer.getX() - this.getX());
--                final double dzSqr = Mth.square(nearestPlayer.getZ() - this.getZ());
+-                final double dxSqr = Mth.square(player.getX() - this.getX());
+-                final double dzSqr = Mth.square(player.getZ() - this.getZ());
 -                final double distanceSquared = dxSqr + dzSqr + dySqr;
 +                final double dy = nearestPlayerData.dy;
 +                final double dySqr = nearestPlayerData.dySqr;
@@ -732,18 +516,18 @@ index e0b3cb2b2694768803ed347a1026b881fd624951..cae8cca87ead3b0eccd4d0f687a813ed
                  if (despawnRangePair.hard().shouldDespawn(shape, dxSqr, dySqr, dzSqr, dy) && this.removeWhenFarAway(distanceSquared)) {
                      this.discard(EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
 diff --git a/net/minecraft/world/entity/ai/attributes/DefaultAttributes.java b/net/minecraft/world/entity/ai/attributes/DefaultAttributes.java
-index 26ffe98c94b2aaf61bf1693e86e8e7962e892a09..e43923a781ea85551193e47179959ebaac765b0e 100644
+index 3b122f0bdfd8490297d173c05c1412c9fcfc886e..acaa6896f198394e945eb3e15cefe3644da47647 100644
 --- a/net/minecraft/world/entity/ai/attributes/DefaultAttributes.java
 +++ b/net/minecraft/world/entity/ai/attributes/DefaultAttributes.java
-@@ -47,6 +47,7 @@ import net.minecraft.world.entity.animal.wolf.Wolf;
+@@ -50,6 +50,7 @@ import net.minecraft.world.entity.animal.wolf.Wolf;
  import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
  import net.minecraft.world.entity.boss.wither.WitherBoss;
  import net.minecraft.world.entity.decoration.ArmorStand;
 +import net.minecraft.world.entity.monster.ArmorStandMonster;
- import net.minecraft.world.entity.monster.AbstractSkeleton;
  import net.minecraft.world.entity.monster.Blaze;
- import net.minecraft.world.entity.monster.Bogged;
-@@ -91,6 +92,7 @@ public class DefaultAttributes {
+ import net.minecraft.world.entity.monster.Creeper;
+ import net.minecraft.world.entity.monster.ElderGuardian;
+@@ -95,6 +96,7 @@ public class DefaultAttributes {
          .put(EntityType.ALLAY, Allay.createAttributes().build())
          .put(EntityType.ARMADILLO, Armadillo.createAttributes().build())
          .put(EntityType.ARMOR_STAND, ArmorStand.createAttributes().build())
@@ -752,7 +536,7 @@ index 26ffe98c94b2aaf61bf1693e86e8e7962e892a09..e43923a781ea85551193e47179959eba
          .put(EntityType.BAT, Bat.createAttributes().build())
          .put(EntityType.BEE, Bee.createAttributes().build())
 diff --git a/net/minecraft/world/entity/ai/goal/GoalSelector.java b/net/minecraft/world/entity/ai/goal/GoalSelector.java
-index 859b859d29b637200cf7c9a0bd52d9f712413e3d..b77c5b992fb09518f3da352af0a0a424b1e40b10 100644
+index 1ddf8796d14d472bec48546f25ac4583d483c8e9..7e8a66870aeb70e8fab76dd7c1fcf18bcdef45aa 100644
 --- a/net/minecraft/world/entity/ai/goal/GoalSelector.java
 +++ b/net/minecraft/world/entity/ai/goal/GoalSelector.java
 @@ -38,7 +38,7 @@ public class GoalSelector {
@@ -765,29 +549,13 @@ index 859b859d29b637200cf7c9a0bd52d9f712413e3d..b77c5b992fb09518f3da352af0a0a424
  
      public boolean hasTasks() {
 diff --git a/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java b/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
-index 84d215a498d9bf6f1232bf4af5a4a98d3ba9b131..cc10ab1f7f4198ba9fd41c0cb432b937c13a8a90 100644
+index 6cccc63f742e25de2655cf092a5cd2b861b59978..f279bc50fd8bdaaa60e1cef7ffdb604c8c79f5ce 100644
 --- a/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
 +++ b/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
-@@ -674,6 +674,28 @@ public class EnderDragon extends Mob implements Enemy {
+@@ -672,6 +672,12 @@ public class EnderDragon extends Mob implements Enemy {
          }
      }
  
-+    protected float getFirstSearchRadius() {
-+        return 60.0F;
-+    }
-+
-+    protected float getSecondSearchRadius() {
-+        return 40.0F;
-+    }
-+
-+    protected float getThirdSearchRadius() {
-+        return 20.0F;
-+    }
-+
-+    protected int calculateMaxY(BlockPos position, int i1) {
-+        return Math.max(73, this.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, position).getY() + i1);
-+    }
-+
 +    // MoraPaper - Add the offset to the vector based on origin
 +    public void addOrigin(Vec3 vec3) {
 +        final net.minecraft.core.BlockPos fightOrigin = getFightOrigin();
@@ -797,52 +565,29 @@ index 84d215a498d9bf6f1232bf4af5a4a98d3ba9b131..cc10ab1f7f4198ba9fd41c0cb432b937
      public int findClosestNode() {
          if (this.nodes[0] == null) {
              for (int i = 0; i < 24; i++) {
-@@ -681,21 +703,25 @@ public class EnderDragon extends Mob implements Enemy {
-                 int floor;
-                 int floor1;
-                 if (i < 12) {
--                    floor = Mth.floor(60.0F * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * i)));
--                    floor1 = Mth.floor(60.0F * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * i)));
-+                    floor = Mth.floor(getFirstSearchRadius() * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * i)));
-+                    floor1 = Mth.floor(getFirstSearchRadius() * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * i)));
-                 } else if (i < 20) {
-                     int i2 = i - 12;
--                    floor = Mth.floor(40.0F * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * i2)));
--                    floor1 = Mth.floor(40.0F * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * i2)));
-+                    floor = Mth.floor(getSecondSearchRadius() * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * i2)));
-+                    floor1 = Mth.floor(getSecondSearchRadius() * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * i2)));
-                     i1 += 10;
-                 } else {
-                     int var7 = i - 20;
--                    floor = Mth.floor(20.0F * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * var7)));
--                    floor1 = Mth.floor(20.0F * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * var7)));
-+                    floor = Mth.floor(getThirdSearchRadius() * Mth.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * var7)));
-+                    floor1 = Mth.floor(getThirdSearchRadius() * Mth.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * var7)));
+@@ -693,6 +699,10 @@ public class EnderDragon extends Mob implements Enemy {
+                     nodeZ = Mth.floor(20.0F * Mth.sin(2.0F * (-Mth.PI + (float) (Math.PI / 4) * multiplier)));
                  }
  
--                int max = Math.max(73, this.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(floor, 0, floor1)).getY() + i1);
--                this.nodes[i] = new Node(floor, max, floor1);
 +                // MoraPaper - Offset nodes to origin
-+                floor += getFightOrigin().getX();
-+                floor1 += getFightOrigin().getZ();
++                nodeX += getFightOrigin().getX();
++                nodeZ += getFightOrigin().getZ();
 +
-+                int maxY = calculateMaxY(new BlockPos(floor, 0, floor1), i1);
-+                this.nodes[i] = new Node(floor, maxY, floor1);
-             }
- 
-             this.nodeAdjacency[0] = 6146;
-@@ -900,7 +926,7 @@ public class EnderDragon extends Mob implements Enemy {
-         EnderDragonPhase<? extends DragonPhaseInstance> phase = currentPhase.getPhase();
-         Vec3 viewVector;
+                 int nodeY = Math.max(
+                     73, this.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(nodeX, 0, nodeZ)).getY() + yAdjustment
+                 );
+@@ -900,7 +910,7 @@ public class EnderDragon extends Mob implements Enemy {
+         EnderDragonPhase<? extends DragonPhaseInstance> phase = phaseInstance.getPhase();
+         Vec3 result;
          if (phase == EnderDragonPhase.LANDING || phase == EnderDragonPhase.TAKEOFF) {
--            BlockPos heightmapPos = this.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.getPodium()); // Paper - Allow changing the EnderDragon podium
-+            BlockPos heightmapPos = calculateLandPosition((net.minecraft.server.level.ServerLevel) this.level(), net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
-             float max = Math.max((float)Math.sqrt(heightmapPos.distToCenterSqr(this.position())) / 4.0F, 1.0F);
-             float f = 6.0F / max;
-             float xRot = this.getXRot();
-@@ -1002,5 +1028,11 @@ public class EnderDragon extends Mob implements Enemy {
+-            BlockPos egg = this.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.getPodium()); // Paper - Allow changing the EnderDragon podium
++            BlockPos egg = calculateLandPosition((net.minecraft.server.level.ServerLevel) this.level(), net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
+             float dist = Math.max((float)Math.sqrt(egg.distToCenterSqr(this.position())) / 4.0F, 1.0F);
+             float yOffset = 6.0F / dist;
+             float xRotOld = this.getXRot();
+@@ -1001,5 +1011,11 @@ public class EnderDragon extends Mob implements Enemy {
  
-         return flag ? i : 0;
+         return shouldDrop ? xpCount : 0;
      }
 +
 +    // MoraSpigot - Allow overriding of land position to ignore the heightmap position
@@ -853,44 +598,44 @@ index 84d215a498d9bf6f1232bf4af5a4a98d3ba9b131..cc10ab1f7f4198ba9fd41c0cb432b937
      // CraftBukkit end
  }
 diff --git a/net/minecraft/world/entity/boss/enderdragon/phases/DragonDeathPhase.java b/net/minecraft/world/entity/boss/enderdragon/phases/DragonDeathPhase.java
-index 85e20366beb7c44c938aa1e9bc2a806ddfa173a0..4bb72708cbc92274451c52e2d44157ebd5ed313b 100644
+index f2555c5ce49a6e6b5c9eea2b9d2ff1d7d65bef6c..602ed5153f6be387cac2aeb7e5534847cadbba9c 100644
 --- a/net/minecraft/world/entity/boss/enderdragon/phases/DragonDeathPhase.java
 +++ b/net/minecraft/world/entity/boss/enderdragon/phases/DragonDeathPhase.java
-@@ -6,7 +6,6 @@ import net.minecraft.core.particles.ParticleTypes;
+@@ -5,7 +5,6 @@ import net.minecraft.core.particles.ParticleTypes;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
  import net.minecraft.world.level.levelgen.Heightmap;
 -import net.minecraft.world.level.levelgen.feature.EndPodiumFeature;
  import net.minecraft.world.phys.Vec3;
+ import org.jspecify.annotations.Nullable;
  
- public class DragonDeathPhase extends AbstractDragonPhaseInstance {
-@@ -34,7 +33,7 @@ public class DragonDeathPhase extends AbstractDragonPhaseInstance {
-     public void doServerTick(ServerLevel level) {
+@@ -33,7 +32,7 @@ public class DragonDeathPhase extends AbstractDragonPhaseInstance {
+     public void doServerTick(final ServerLevel level) {
          this.time++;
          if (this.targetLocation == null) {
--            BlockPos heightmapPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
-+            BlockPos heightmapPos = this.dragon.calculateLandPosition(level, Heightmap.Types.MOTION_BLOCKING); // MoraPaper - Allow changing the EnderDragon podium
-             this.targetLocation = Vec3.atBottomCenterOf(heightmapPos);
+-            BlockPos egg = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
++            BlockPos egg = this.dragon.calculateLandPosition(level, Heightmap.Types.MOTION_BLOCKING); // MoraPaper - Allow changing the EnderDragon podium
+             this.targetLocation = Vec3.atBottomCenterOf(egg);
          }
  
 diff --git a/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java b/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java
-index 1afb9ff6a5546f912238b1b03aacf45033f7c481..51b14c7f52f1a46f7452ced8e1966ae0ec3df5a1 100644
+index 5245e9a1c4eb289efcf832cea4aebee1dcf02daf..041ccfe165b8244ffecbb4c47363be33493f0641 100644
 --- a/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java
 +++ b/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java
-@@ -53,7 +53,7 @@ public class DragonHoldingPatternPhase extends AbstractDragonPhaseInstance {
+@@ -50,7 +50,7 @@ public class DragonHoldingPatternPhase extends AbstractDragonPhaseInstance {
  
-     private void findNewTarget(ServerLevel level) {
+     private void findNewTarget(final ServerLevel level) {
          if (this.currentPath != null && this.currentPath.isDone()) {
--            BlockPos heightmapPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
+-            BlockPos egg = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
 +            BlockPos heightmapPos = this.dragon.calculateLandPosition(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
-             int i = this.dragon.getDragonFight() == null ? 0 : this.dragon.getDragonFight().getCrystalsAlive();
-             if (this.dragon.getRandom().nextInt(i + 3) == 0) {
+             int crystals = this.dragon.getDragonFight() == null ? 0 : this.dragon.getDragonFight().aliveCrystals();
+             if (this.dragon.getRandom().nextInt(crystals + 3) == 0) {
                  this.dragon.getPhaseManager().setPhase(EnderDragonPhase.LANDING_APPROACH);
 diff --git a/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingApproachPhase.java b/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingApproachPhase.java
-index aafa99c3553a1ba35e3d7e1a7c7842ed0468e509..a2e0314e52c7188e086b4dbf80285a750ebdbfee 100644
+index 304356cda2d188bbfda8a6be27b08f1b8685e7dc..31d46296a28d857a53011e27f2ffcc230713e07f 100644
 --- a/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingApproachPhase.java
 +++ b/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingApproachPhase.java
-@@ -7,8 +7,6 @@ import net.minecraft.server.level.ServerLevel;
+@@ -6,8 +6,6 @@ import net.minecraft.server.level.ServerLevel;
  import net.minecraft.world.entity.ai.targeting.TargetingConditions;
  import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
  import net.minecraft.world.entity.player.Player;
@@ -899,44 +644,38 @@ index aafa99c3553a1ba35e3d7e1a7c7842ed0468e509..a2e0314e52c7188e086b4dbf80285a75
  import net.minecraft.world.level.pathfinder.Node;
  import net.minecraft.world.level.pathfinder.Path;
  import net.minecraft.world.phys.Vec3;
-@@ -49,17 +47,28 @@ public class DragonLandingApproachPhase extends AbstractDragonPhaseInstance {
-         return this.targetLocation;
-     }
- 
-+
-+
-     private void findNewTarget(ServerLevel level) {
+@@ -49,14 +47,22 @@ public class DragonLandingApproachPhase extends AbstractDragonPhaseInstance {
+     private void findNewTarget(final ServerLevel level) {
          if (this.currentPath == null || this.currentPath.isDone()) {
-             int i = this.dragon.findClosestNode();
--            BlockPos heightmapPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
-+            BlockPos heightmapPos = this.dragon.calculateLandPosition(level, net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
-             Player nearestPlayer = level.getNearestPlayer(NEAR_EGG_TARGETING, this.dragon, heightmapPos.getX(), heightmapPos.getY(), heightmapPos.getZ());
-             int i1;
-             if (nearestPlayer != null) {
-                 Vec3 vec3 = new Vec3(nearestPlayer.getX(), 0.0, nearestPlayer.getZ()).normalize();
--                i1 = this.dragon.findClosestNode(-vec3.x * 40.0, 105.0, -vec3.z * 40.0);
-+
+             int currentNodeIndex = this.dragon.findClosestNode();
+-            BlockPos egg = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
++            BlockPos egg = this.dragon.calculateLandPosition(level, net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
+             Player playerNearestToEgg = level.getNearestPlayer(NEAR_EGG_TARGETING, this.dragon, egg.getX(), egg.getY(), egg.getZ());
+             int targetNodeIndex;
+             if (playerNearestToEgg != null) {
+                 Vec3 aim = new Vec3(playerNearestToEgg.getX(), 0.0, playerNearestToEgg.getZ()).normalize();
+-                targetNodeIndex = this.dragon.findClosestNode(-aim.x * 40.0, 105.0, -aim.z * 40.0);
 +                // MoraPaper - Add origin
-+                Vec3 extra = new Vec3(-vec3.x * 40.0, 105.0, -vec3.z * 40.0);
++                Vec3 extra = new Vec3(-aim.x * 40.0, 105.0, -aim.z * 40.0);
 +                this.dragon.addOrigin(extra);
 +
-+                i1 = this.dragon.findClosestNode(extra.x, extra.y, extra.z);
++                targetNodeIndex = this.dragon.findClosestNode(extra.x, extra.y, -extra.z);
              } else {
--                i1 = this.dragon.findClosestNode(40.0, heightmapPos.getY(), 0.0);
+-                targetNodeIndex = this.dragon.findClosestNode(40.0, egg.getY(), 0.0);
 +                // MoraPaper - Add origin
-+                Vec3 extra = new Vec3(40.0, heightmapPos.getY(), 0.0);
++                Vec3 extra = new Vec3(40.0, egg.getY(), 0.0);
 +                this.dragon.addOrigin(extra);
 +
-+                i1 = this.dragon.findClosestNode(extra.x, extra.y, extra.z);
++                targetNodeIndex = this.dragon.findClosestNode(extra.x, extra.y, extra.z);
              }
  
-             Node node = new Node(heightmapPos.getX(), heightmapPos.getY(), heightmapPos.getZ());
+             Node finalNode = new Node(egg.getX(), egg.getY(), egg.getZ());
 diff --git a/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingPhase.java b/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingPhase.java
-index 1ab3491a0be33ba9a0c2b4a09b766d94b106fbd5..9526d79fcf7e020fa6a236a9be901e0a629a49fd 100644
+index e5089f65bc6bb4df4fa7800399642730e04bad66..4787114aebf7d9dce891bd3701e3579ebc96f4fa 100644
 --- a/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingPhase.java
 +++ b/net/minecraft/world/entity/boss/enderdragon/phases/DragonLandingPhase.java
 @@ -50,7 +50,7 @@ public class DragonLandingPhase extends AbstractDragonPhaseInstance {
-     public void doServerTick(ServerLevel level) {
+     public void doServerTick(final ServerLevel level) {
          if (this.targetLocation == null) {
              this.targetLocation = Vec3.atBottomCenterOf(
 -                level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()) // Paper - Allow changing the EnderDragon podium
@@ -945,32 +684,32 @@ index 1ab3491a0be33ba9a0c2b4a09b766d94b106fbd5..9526d79fcf7e020fa6a236a9be901e0a
          }
  
 diff --git a/net/minecraft/world/entity/boss/enderdragon/phases/DragonTakeoffPhase.java b/net/minecraft/world/entity/boss/enderdragon/phases/DragonTakeoffPhase.java
-index d0142ec67dad3b41ae0a693df614956e8ddabd9c..701873f0e84a07eeb81a9a7e70ec4967f27837d3 100644
+index 64ee967af3ab2b934660ca521548826151c6c08e..8dc0ff1281d41911edc79f6df6b1208dd8da071f 100644
 --- a/net/minecraft/world/entity/boss/enderdragon/phases/DragonTakeoffPhase.java
 +++ b/net/minecraft/world/entity/boss/enderdragon/phases/DragonTakeoffPhase.java
-@@ -24,7 +24,7 @@ public class DragonTakeoffPhase extends AbstractDragonPhaseInstance {
+@@ -22,7 +22,7 @@ public class DragonTakeoffPhase extends AbstractDragonPhaseInstance {
      @Override
-     public void doServerTick(ServerLevel level) {
+     public void doServerTick(final ServerLevel level) {
          if (!this.firstTick && this.currentPath != null) {
--            BlockPos heightmapPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
-+            BlockPos heightmapPos = this.dragon.calculateLandPosition(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
-             if (!heightmapPos.closerToCenterThan(this.dragon.position(), 10.0)) {
+-            BlockPos egg = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
++            BlockPos egg = this.dragon.calculateLandPosition(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
+             if (!egg.closerToCenterThan(this.dragon.position(), 10.0)) {
                  this.dragon.getPhaseManager().setPhase(EnderDragonPhase.HOLDING_PATTERN);
              }
-@@ -44,7 +44,12 @@ public class DragonTakeoffPhase extends AbstractDragonPhaseInstance {
+@@ -42,7 +42,12 @@ public class DragonTakeoffPhase extends AbstractDragonPhaseInstance {
      private void findNewTarget() {
-         int i = this.dragon.findClosestNode();
-         Vec3 headLookVector = this.dragon.getHeadLookVector(1.0F);
--        int i1 = this.dragon.findClosestNode(-headLookVector.x * 40.0, 105.0, -headLookVector.z * 40.0);
+         int currentNodeIndex = this.dragon.findClosestNode();
+         Vec3 lookVector = this.dragon.getHeadLookVector(1.0F);
+-        int targetNodeIndex = this.dragon.findClosestNode(-lookVector.x * 40.0, 105.0, -lookVector.z * 40.0);
 +
 +        // MoraPaper - Add origin
-+        Vec3 extra = new Vec3(-headLookVector.x * 40.0, 105.0, -headLookVector.z * 40.0);
++        Vec3 extra = new Vec3(-lookVector.x * 40.0, 105.0, -lookVector.z * 40.0);
 +        this.dragon.addOrigin(extra);
 +
-+        int i1 = this.dragon.findClosestNode();
-         if (this.dragon.getDragonFight() != null && this.dragon.getDragonFight().getCrystalsAlive() > 0) {
-             i1 %= 12;
-             if (i1 < 0) {
++        int targetNodeIndex = this.dragon.findClosestNode(extra.x, extra.y, extra.z);
+         if (this.dragon.getDragonFight() != null && this.dragon.getDragonFight().aliveCrystals() > 0) {
+             targetNodeIndex %= 12;
+             if (targetNodeIndex < 0) {
 diff --git a/net/minecraft/world/entity/monster/ArmorStandMonster.java b/net/minecraft/world/entity/monster/ArmorStandMonster.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..f83fdd907c5f81c5cf4ceda2bfb9a94a884422e5
@@ -1791,10 +1530,10 @@ index 0000000000000000000000000000000000000000..f83fdd907c5f81c5cf4ceda2bfb9a94a
 +    // Paper end
 +}
 diff --git a/net/minecraft/world/entity/monster/Monster.java b/net/minecraft/world/entity/monster/Monster.java
-index 5ef9566b16a4d0300ee45a993c46e734db156416..9621e2fea6e748a1b8b60fd7c5ad942024941e3b 100644
+index c55b51ed7ed27cc658170d5c35c81a818b8867f2..b74573d0ac8e93bbdbd93ba2b7e5568337d246fc 100644
 --- a/net/minecraft/world/entity/monster/Monster.java
 +++ b/net/minecraft/world/entity/monster/Monster.java
-@@ -40,6 +40,7 @@ public abstract class Monster extends PathfinderMob implements Enemy {
+@@ -41,6 +41,7 @@ public abstract class Monster extends PathfinderMob implements Enemy {
  
      @Override
      public void aiStep() {
@@ -1802,11 +1541,11 @@ index 5ef9566b16a4d0300ee45a993c46e734db156416..9621e2fea6e748a1b8b60fd7c5ad9420
          this.updateSwingTime();
          this.updateNoActionTime();
          super.aiStep();
-diff --git a/net/minecraft/world/entity/npc/Villager.java b/net/minecraft/world/entity/npc/Villager.java
-index e1e2bdb35866a8f32a41f6efd24ad77cf916b2e9..0efb4f2a785a5612896dcd0cf2c168820b285f25 100644
---- a/net/minecraft/world/entity/npc/Villager.java
-+++ b/net/minecraft/world/entity/npc/Villager.java
-@@ -292,7 +292,12 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+diff --git a/net/minecraft/world/entity/npc/villager/Villager.java b/net/minecraft/world/entity/npc/villager/Villager.java
+index e4ba6e200e85f4e226d6a3e68db734f277b89226..4c5c5b56e9f86c121018ee7eb6fb163144ce47cc 100644
+--- a/net/minecraft/world/entity/npc/villager/Villager.java
++++ b/net/minecraft/world/entity/npc/villager/Villager.java
+@@ -268,7 +268,12 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
          // Paper start - EAR 2
          this.customServerAiStep(level, false);
      }
@@ -1818,45 +1557,25 @@ index e1e2bdb35866a8f32a41f6efd24ad77cf916b2e9..0efb4f2a785a5612896dcd0cf2c16882
 +        }
 +
          // Paper end - EAR 2
-         ProfilerFiller profilerFiller = Profiler.get();
-         profilerFiller.push("villagerBrain");
-diff --git a/net/minecraft/world/entity/player/Inventory.java b/net/minecraft/world/entity/player/Inventory.java
-index a6bb436dc80daf6901dc027a6011ead4b3ed27e2..90d93e4a9835589c913fe56605cdf5d3c4abed83 100644
---- a/net/minecraft/world/entity/player/Inventory.java
-+++ b/net/minecraft/world/entity/player/Inventory.java
-@@ -33,6 +33,7 @@ public class Inventory implements Container, Nameable {
-     public static final int SLOT_BODY_ARMOR = 41;
-     public static final int SLOT_SADDLE = 42;
-     public static final int NOT_FOUND_INDEX = -1;
-+
-     public static final Int2ObjectMap<EquipmentSlot> EQUIPMENT_SLOT_MAPPING = new Int2ObjectArrayMap<>(
-         Map.of(
-             EquipmentSlot.FEET.getIndex(36),
-@@ -51,6 +52,7 @@ public class Inventory implements Container, Nameable {
-             EquipmentSlot.SADDLE
-         )
-     );
-+
-     private final NonNullList<ItemStack> items = NonNullList.withSize(36, ItemStack.EMPTY);
-     private int selected;
-     public final Player player;
+         ProfilerFiller profiler = Profiler.get();
+         profiler.push("villagerBrain");
 diff --git a/net/minecraft/world/entity/player/Player.java b/net/minecraft/world/entity/player/Player.java
-index 8f4c45fbea2d7c1317aff36031bb834b07b23a82..aa5b4e11651c0a38557d5ec8164011393edabca9 100644
+index e34b050cfeb9d9afa1869b19ff862627d27d60f7..5b9c0eb826cfe8114272d19f9d84a926bc146ad0 100644
 --- a/net/minecraft/world/entity/player/Player.java
 +++ b/net/minecraft/world/entity/player/Player.java
-@@ -1280,6 +1280,7 @@ public abstract class Player extends LivingEntity {
-                                         && livingEntity2 != target
-                                         && !this.isAlliedTo(livingEntity2)
-                                         && !(livingEntity2 instanceof ArmorStand armorStand && armorStand.isMarker())
-+                                        && !(livingEntity2 instanceof net.minecraft.world.entity.monster.ArmorStandMonster armorStandMonster && armorStandMonster.isMarker())
-                                         && this.distanceToSqr(livingEntity2) < 9.0) {
-                                         float f6 = this.getEnchantedDamage(livingEntity2, f5, damageSource) * attackStrengthScale;
-                                         // Paper start - Only apply knockback if the event is not cancelled
-diff --git a/net/minecraft/world/entity/projectile/Snowball.java b/net/minecraft/world/entity/projectile/Snowball.java
-index 677b4b681f9c2c09a8ae3cfdec72102265547a7b..1fb6779bd950a8b5e4de0395c80672a0672aa94b 100644
---- a/net/minecraft/world/entity/projectile/Snowball.java
-+++ b/net/minecraft/world/entity/projectile/Snowball.java
-@@ -64,4 +64,13 @@ public class Snowball extends ThrowableItemProjectile {
+@@ -1254,6 +1254,7 @@ public abstract class Player extends Avatar implements ContainerUser {
+                     && nearby != entity
+                     && !this.isAlliedTo(nearby)
+                     && !(nearby instanceof ArmorStand armorStand && armorStand.isMarker())
++                    && !(nearby instanceof net.minecraft.world.entity.monster.ArmorStandMonster armorStandMonster && armorStandMonster.isMarker()) // MoraPaper
+                     && this.distanceToSqr(nearby) < 9.0) {
+                     float enchantedDamage = this.getEnchantedDamage(nearby, var12, damageSource) * attackStrengthScale;
+                     // Paper start - Only apply knockback if the event is not canceled
+diff --git a/net/minecraft/world/entity/projectile/throwableitemprojectile/Snowball.java b/net/minecraft/world/entity/projectile/throwableitemprojectile/Snowball.java
+index 6e828818909df2b31349398639257b7a6f89fcd5..084d4c3e08df5147484c89d946db72fea3dd11de 100644
+--- a/net/minecraft/world/entity/projectile/throwableitemprojectile/Snowball.java
++++ b/net/minecraft/world/entity/projectile/throwableitemprojectile/Snowball.java
+@@ -66,4 +66,13 @@ public class Snowball extends ThrowableItemProjectile {
              this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.HIT); // CraftBukkit - add Bukkit remove cause
          }
      }
@@ -1870,11 +1589,11 @@ index 677b4b681f9c2c09a8ae3cfdec72102265547a7b..1fb6779bd950a8b5e4de0395c80672a0
 +    // MoraPaper end - Prevent Snowball Lag Machine
 +
  }
-diff --git a/net/minecraft/world/entity/projectile/ThrownEgg.java b/net/minecraft/world/entity/projectile/ThrownEgg.java
-index 73ec34b43f3fb2aa3edc3f1cb48a923d1fa32036..9b4fe0316e71f0dd4740390e53ce534aebfa2d3a 100644
---- a/net/minecraft/world/entity/projectile/ThrownEgg.java
-+++ b/net/minecraft/world/entity/projectile/ThrownEgg.java
-@@ -128,4 +128,13 @@ public class ThrownEgg extends ThrowableItemProjectile {
+diff --git a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEgg.java b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEgg.java
+index 55d97e1a69d17308196938398ab5a34bcca44e46..af9bc3b89d7561de3c1a6e9ab011f28345e27fbd 100644
+--- a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEgg.java
++++ b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEgg.java
+@@ -131,4 +131,13 @@ public class ThrownEgg extends ThrowableItemProjectile {
      public Item getDefaultItem() {
          return Items.EGG;
      }
@@ -1888,65 +1607,66 @@ index 73ec34b43f3fb2aa3edc3f1cb48a923d1fa32036..9b4fe0316e71f0dd4740390e53ce534a
 +    // MoraPaper end - Prevent Egg Lag Machine
 +
  }
-diff --git a/net/minecraft/world/entity/vehicle/NewMinecartBehavior.java b/net/minecraft/world/entity/vehicle/NewMinecartBehavior.java
-index 090b19752fbfc856d9fbf118510afc6cda2b9989..71486d7a2c7b7e775db283f937c9ffce1268d4db 100644
---- a/net/minecraft/world/entity/vehicle/NewMinecartBehavior.java
-+++ b/net/minecraft/world/entity/vehicle/NewMinecartBehavior.java
-@@ -367,6 +367,13 @@ public class NewMinecartBehavior extends MinecartBehavior {
-         if (this.minecart.getFirstPassenger() instanceof ServerPlayer serverPlayer) {
-             Vec3 lastClientMoveIntent = serverPlayer.getLastClientMoveIntent();
-             if (lastClientMoveIntent.lengthSqr() > 0.0) {
-+                // MoraPaper Start - Steer minecart event
-+                final org.bukkit.event.player.PlayerSteerMinecartEvent event = new org.bukkit.event.player.PlayerSteerMinecartEvent(serverPlayer.getBukkitEntity(), (org.bukkit.entity.Minecart) this.minecart.getBukkitEntity());
-+                event.callEvent();
-+
-+                if (event.isCancelled()) return speed;
-+                // MoraPaper End
-+
-                 Vec3 vec3 = lastClientMoveIntent.normalize();
-                 double d = speed.horizontalDistanceSqr();
-                 if (vec3.lengthSqr() > 0.0 && d < 0.01) {
-diff --git a/net/minecraft/world/entity/vehicle/OldMinecartBehavior.java b/net/minecraft/world/entity/vehicle/OldMinecartBehavior.java
-index 0d09b0809e7b224538cf5cfac9e36ec5ba10b709..b953d6d8c66917eaa3ee5b580ca2aad71440dd59 100644
---- a/net/minecraft/world/entity/vehicle/OldMinecartBehavior.java
-+++ b/net/minecraft/world/entity/vehicle/OldMinecartBehavior.java
-@@ -162,6 +162,17 @@ public class OldMinecartBehavior extends MinecartBehavior {
-         Vec3 lastClientMoveIntent;
-         if (this.minecart.getFirstPassenger() instanceof ServerPlayer serverPlayer) {
-             lastClientMoveIntent = serverPlayer.getLastClientMoveIntent();
-+
+diff --git a/net/minecraft/world/entity/vehicle/minecart/NewMinecartBehavior.java b/net/minecraft/world/entity/vehicle/minecart/NewMinecartBehavior.java
+index 18f3ff2cb03cc401c999acdf31bb1812e69e0f62..15464dc3fd102b74bd2362278adf161a5f6aa73c 100644
+--- a/net/minecraft/world/entity/vehicle/minecart/NewMinecartBehavior.java
++++ b/net/minecraft/world/entity/vehicle/minecart/NewMinecartBehavior.java
+@@ -368,6 +368,13 @@ public class NewMinecartBehavior extends MinecartBehavior {
+ 
+     private Vec3 calculatePlayerInputSpeed(final Vec3 deltaMovement) {
+         if (this.minecart.getFirstPassenger() instanceof ServerPlayer player) {
 +            // MoraPaper Start - Steer minecart event
-+            if (lastClientMoveIntent.x != 0 || lastClientMoveIntent.y != 0 || lastClientMoveIntent.z != 0) {
-+                final org.bukkit.event.player.PlayerSteerMinecartEvent event = new org.bukkit.event.player.PlayerSteerMinecartEvent(serverPlayer.getBukkitEntity(), (org.bukkit.entity.Minecart) this.minecart.getBukkitEntity());
++            final org.bukkit.event.player.PlayerSteerMinecartEvent event = new org.bukkit.event.player.PlayerSteerMinecartEvent((org.bukkit.entity.Player) player.getBukkitEntity(), (org.bukkit.entity.Minecart) this.minecart.getBukkitEntity());
++            event.callEvent();
++
++            if (event.isCancelled()) return deltaMovement;
++            // MoraPaper End
++
+             Vec3 moveIntent = player.getLastClientMoveIntent();
+             if (moveIntent.lengthSqr() > 0.0) {
+                 Vec3 riderMovement = moveIntent.normalize();
+diff --git a/net/minecraft/world/entity/vehicle/minecart/OldMinecartBehavior.java b/net/minecraft/world/entity/vehicle/minecart/OldMinecartBehavior.java
+index 3c8694e75cabd68690d9139ecedc9e079db482c5..c57fd515986e60114baa205e33d6ada88a450b7d 100644
+--- a/net/minecraft/world/entity/vehicle/minecart/OldMinecartBehavior.java
++++ b/net/minecraft/world/entity/vehicle/minecart/OldMinecartBehavior.java
+@@ -162,6 +162,16 @@ public class OldMinecartBehavior extends MinecartBehavior {
+         Vec3 moveIntent;
+         if (this.minecart.getFirstPassenger() instanceof ServerPlayer player) {
+             moveIntent = player.getLastClientMoveIntent();
++            // MoraPaper Start - Steer minecart event
++            if (moveIntent.x != 0 || moveIntent.y != 0 || moveIntent.z != 0) {
++                final org.bukkit.event.player.PlayerSteerMinecartEvent event = new org.bukkit.event.player.PlayerSteerMinecartEvent((org.bukkit.entity.Player) player.getBukkitEntity(), (org.bukkit.entity.Minecart) this.minecart.getBukkitEntity());
 +                event.callEvent();
 +
 +                if (event.isCancelled()) {
-+                    lastClientMoveIntent = net.minecraft.world.phys.Vec3.ZERO;
++                    moveIntent = net.minecraft.world.phys.Vec3.ZERO;
 +                }
 +            }
 +            // MoraPaper End
          } else {
-             lastClientMoveIntent = Vec3.ZERO;
+             moveIntent = Vec3.ZERO;
          }
 diff --git a/net/minecraft/world/item/MaceItem.java b/net/minecraft/world/item/MaceItem.java
-index a0bc395fa6700da397262e4b722593a915975200..652eb29b41e2eaf74ce4985d11840b71c21d8e46 100644
+index 681ef7b4f6f987b1779859ed1d9bcd6e5670adab..8ff867bcbaa396222744d011e6e94955db983ffa 100644
 --- a/net/minecraft/world/item/MaceItem.java
 +++ b/net/minecraft/world/item/MaceItem.java
-@@ -154,7 +154,8 @@ public class MaceItem extends Item {
+@@ -147,9 +147,10 @@ public class MaceItem extends Item {
+                 nearby instanceof TamableAnimal animal && entity instanceof LivingEntity livingAttacker && animal.isTame() && animal.isOwnedBy(livingAttacker)
              );
-             boolean flag4 = !(livingEntity instanceof ArmorStand armorStand && armorStand.isMarker());
-             boolean flag5 = target.distanceToSqr(livingEntity) <= Math.pow(3.5, 2.0);
--            return flag && flag1 && flag2 && flag3 && flag4 && flag5;
-+            boolean flag6 = !(livingEntity instanceof net.minecraft.world.entity.monster.ArmorStandMonster armorStandMonster && armorStandMonster.isMarker());
-+            return flag && flag1 && flag2 && flag3 && flag4 && flag5 && flag6;
+             boolean notArmorStand = !(nearby instanceof ArmorStand armorStand && armorStand.isMarker());
++            boolean notArmorStandMonster = !(nearby instanceof net.minecraft.world.entity.monster.ArmorStandMonster armorStandMonster && armorStandMonster.isMarker());
+             boolean withinRange = entity.distanceToSqr(nearby) <= Math.pow(3.5, 2.0);
+             boolean notFlyingInCreative = !(nearby instanceof Player player && player.isCreative() && player.getAbilities().flying);
+-            return notSpectator && notPlayer && notAlliedToPlayer && notTamedByPlayer && notArmorStand && withinRange && notFlyingInCreative;
++            return notSpectator && notPlayer && notAlliedToPlayer && notTamedByPlayer && notArmorStand && notArmorStandMonster && withinRange && notFlyingInCreative;
          };
      }
  
 diff --git a/net/minecraft/world/level/entity/EntityTickList.java b/net/minecraft/world/level/entity/EntityTickList.java
-index 423779a2b690f387a4f0bd07b97b50e0baefda76..33cdab242a3d58c6cbe4ede3497f1864f05bcf7e 100644
+index a30409eddfaded878a3ac54bb526fd2e4b887c57..745b02356a9db225334adf200cb19ed18760aa9d 100644
 --- a/net/minecraft/world/level/entity/EntityTickList.java
 +++ b/net/minecraft/world/level/entity/EntityTickList.java
-@@ -11,6 +11,9 @@ import net.minecraft.world.entity.Entity;
+@@ -11,6 +11,9 @@ import org.jspecify.annotations.Nullable;
  public class EntityTickList {
      private final ca.spottedleaf.moonrise.common.list.IteratorSafeOrderedReferenceSet<net.minecraft.world.entity.Entity> entities = new ca.spottedleaf.moonrise.common.list.IteratorSafeOrderedReferenceSet<>(); // Paper - rewrite chunk system
  
@@ -1957,19 +1677,19 @@ index 423779a2b690f387a4f0bd07b97b50e0baefda76..33cdab242a3d58c6cbe4ede3497f1864
          // Paper - rewrite chunk system
      }
 @@ -18,11 +21,13 @@ public class EntityTickList {
-     public void add(Entity entity) {
+     public void add(final Entity entity) {
          this.ensureActiveIsNotIterated();
          this.entities.add(entity); // Paper - rewrite chunk system
 +        this.asyncEntities.add(entity); // MoraPaper - async list to use entities from other threads
      }
  
-     public void remove(Entity entity) {
+     public void remove(final Entity entity) {
          this.ensureActiveIsNotIterated();
          this.entities.remove(entity); // Paper - rewrite chunk system
 +        this.asyncEntities.remove(entity); // MoraPaper - async list to use entities from other threads
      }
  
-     public boolean contains(Entity entity) {
+     public boolean contains(final Entity entity) {
 @@ -43,4 +48,10 @@ public class EntityTickList {
          }
          // Paper end - rewrite chunk system
