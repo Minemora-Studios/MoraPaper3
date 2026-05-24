@@ -465,7 +465,7 @@ index d10d082046e41cf937f1a439e3e7dd61cd16f326..ea489dd609129d1722cc12d9a9cc32f0
 +    }
  }
 diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
-index 8b036640be655c65852e0862e30962e443d3024d..4d7c666af384ecd41277087bc7bd94e597c20083 100644
+index 8b036640be655c65852e0862e30962e443d3024d..9bcacbbe7afe6e335af5615f3f8f507591b1efaa 100644
 --- a/net/minecraft/world/entity/Mob.java
 +++ b/net/minecraft/world/entity/Mob.java
 @@ -150,6 +150,7 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
@@ -490,15 +490,6 @@ index 8b036640be655c65852e0862e30962e443d3024d..4d7c666af384ecd41277087bc7bd94e5
          super.aiStep();
          if (this.is(EntityTypeTags.BURN_IN_DAYLIGHT)) {
              this.burnUndead();
-@@ -588,7 +594,7 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
-         if (!this.level().isClientSide() && this.level().environmentAttributes().getValue(EnvironmentAttributes.MONSTERS_BURN, this.position())) {
-             float br = this.getLightLevelDependentMagicValue();
-             BlockPos roundedPos = BlockPos.containing(this.getX(), this.getEyeY(), this.getZ());
--            boolean isInNonBurnableBlock = this.isInWaterOrRain() || this.isInPowderSnow || this.wasInPowderSnow;
-+            boolean i<sInNonBurnableBlock = this.isInWaterOrRain() || this.isInPowderSnow || this.wasInPowderSnow;
-             if (br > 0.5F && this.random.nextFloat() * 30.0F < (br - 0.4F) * 2.0F && !isInNonBurnableBlock && this.level().canSeeSky(roundedPos)) {
-                 return true;
-             }
 @@ -758,21 +764,39 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
      }
      // Paper end - allow changing despawnInPeaceful
