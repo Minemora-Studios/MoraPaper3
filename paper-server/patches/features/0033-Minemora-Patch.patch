@@ -336,10 +336,40 @@ index 60ff8173750b57aa05bb19a3dd1c744f870f59a5..c54e42c4b733ea47fcc94b8a7cde2fbd
          if (this.acceptsChatMessages()) {
              message.sendToPlayer(this, filtered, chatType, unsigned); // Paper
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 810b352503cdf56091ec6340ad72edde238fe359..5f11c419246b1ee290128fab2a87312207b758e4 100644
+index 810b352503cdf56091ec6340ad72edde238fe359..e356545607250556822986bd76afd149cca53bce 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2570,8 +2570,9 @@ public class ServerGamePacketListenerImpl
+@@ -1893,11 +1893,28 @@ public class ServerGamePacketListenerImpl
+         }
+ 
+         // Paper start - Teleport API
+-        final Set<io.papermc.paper.entity.TeleportFlag.Relative> relativeFlags = java.util.EnumSet.noneOf(io.papermc.paper.entity.TeleportFlag.Relative.class);
++        // MoraPaper Starts - Pre teleport event
++        Set<io.papermc.paper.entity.TeleportFlag.Relative> relativeFlags = java.util.EnumSet.noneOf(io.papermc.paper.entity.TeleportFlag.Relative.class); // MoraPaper - no final
+         for (final Relative relativeArgument : relatives) {
+             final io.papermc.paper.entity.TeleportFlag.Relative flag = org.bukkit.craftbukkit.entity.CraftEntity.deltaRelativeToAPI(relativeArgument);
+             if (flag != null) relativeFlags.add(flag);
+         }
++
++        final org.bukkit.event.player.PlayerPreTeleportEvent preTeleportEvent = new org.bukkit.event.player.PlayerPreTeleportEvent(player, from, to, cause);
++        preTeleportEvent.callEvent();
++
++        if (!preTeleportEvent.getFlags().isEmpty()) {
++            // If allFlags is empty, it means it's an immutable Set, replace it with a mutable one
++            if (relativeFlags.isEmpty()) relativeFlags = new java.util.HashSet<>();
++            // Convert any TeleportFlag values to the Relative variant before adding
++            for (final io.papermc.paper.entity.TeleportFlag flag : preTeleportEvent.getFlags()) {
++                if (flag instanceof io.papermc.paper.entity.TeleportFlag.Relative rel) {
++                    relativeFlags.add(rel);
++                }
++            }
++        }
++        // MoraPaper Ends
++
+         PlayerTeleportEvent event = new PlayerTeleportEvent(player, from.clone(), to.clone(), cause, java.util.Set.copyOf(relativeFlags));
+         // Paper end - Teleport API
+         this.cserver.getPluginManager().callEvent(event);
+@@ -2570,8 +2587,9 @@ public class ServerGamePacketListenerImpl
                  LastSeenMessages result = this.lastSeenMessages.applyUpdate(update);
                  var10000 = Optional.of(result);
              } catch (LastSeenMessagesValidator.ValidationException e) {
@@ -351,7 +381,7 @@ index 810b352503cdf56091ec6340ad72edde238fe359..5f11c419246b1ee290128fab2a873122
                  return Optional.empty();
              }
  
-@@ -2673,8 +2674,9 @@ public class ServerGamePacketListenerImpl
+@@ -2673,8 +2691,9 @@ public class ServerGamePacketListenerImpl
              try {
                  this.lastSeenMessages.applyOffset(packet.offset());
              } catch (LastSeenMessagesValidator.ValidationException e) {
@@ -363,7 +393,7 @@ index 810b352503cdf56091ec6340ad72edde238fe359..5f11c419246b1ee290128fab2a873122
              }
          }
      }
-@@ -2782,6 +2784,10 @@ public class ServerGamePacketListenerImpl
+@@ -2782,6 +2801,10 @@ public class ServerGamePacketListenerImpl
              return;
          }
          // CraftBukkit end
