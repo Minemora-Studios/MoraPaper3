@@ -6,7 +6,6 @@ import org.bukkit.entity.Allay;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.Armadillo;
 import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.ArmorStandMonster;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Cat;
 import org.bukkit.entity.Creaking;
@@ -269,11 +268,6 @@ public enum EntityEffect {
      * Armor stand is hit.
      */
     ARMOR_STAND_HIT(32, ArmorStand.class),
-    // 31 - unused
-    /**
-     * Armor stand is hit.
-     */
-    ARMOR_STAND_MONSTER_HIT(32, ArmorStandMonster.class),
     /**
      * Entity hurt by thorns attack.
      *
