@@ -640,7 +640,7 @@ index f2555c5ce49a6e6b5c9eea2b9d2ff1d7d65bef6c..602ed5153f6be387cac2aeb7e5534847
          }
  
 diff --git a/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java b/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java
-index 5245e9a1c4eb289efcf832cea4aebee1dcf02daf..041ccfe165b8244ffecbb4c47363be33493f0641 100644
+index 5245e9a1c4eb289efcf832cea4aebee1dcf02daf..d28e224fb67825b08291ebc46904351d3899670f 100644
 --- a/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java
 +++ b/net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java
 @@ -50,7 +50,7 @@ public class DragonHoldingPatternPhase extends AbstractDragonPhaseInstance {
@@ -648,7 +648,7 @@ index 5245e9a1c4eb289efcf832cea4aebee1dcf02daf..041ccfe165b8244ffecbb4c47363be33
      private void findNewTarget(final ServerLevel level) {
          if (this.currentPath != null && this.currentPath.isDone()) {
 -            BlockPos egg = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, this.dragon.getPodium()); // Paper - Allow changing the EnderDragon podium
-+            BlockPos heightmapPos = this.dragon.calculateLandPosition(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
++            BlockPos egg = this.dragon.calculateLandPosition(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES); // MoraPaper - Allow changing the EnderDragon podium
              int crystals = this.dragon.getDragonFight() == null ? 0 : this.dragon.getDragonFight().aliveCrystals();
              if (this.dragon.getRandom().nextInt(crystals + 3) == 0) {
                  this.dragon.getPhaseManager().setPhase(EnderDragonPhase.LANDING_APPROACH);
@@ -733,10 +733,10 @@ index 64ee967af3ab2b934660ca521548826151c6c08e..8dc0ff1281d41911edc79f6df6b1208d
              if (targetNodeIndex < 0) {
 diff --git a/net/minecraft/world/entity/monster/ArmorStandMonster.java b/net/minecraft/world/entity/monster/ArmorStandMonster.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f83fdd907c5f81c5cf4ceda2bfb9a94a884422e5
+index 0000000000000000000000000000000000000000..6239d2b94a15d84414b479c21bc740577cb6a49a
 --- /dev/null
 +++ b/net/minecraft/world/entity/monster/ArmorStandMonster.java
-@@ -0,0 +1,813 @@
+@@ -0,0 +1,827 @@
 +package net.minecraft.world.entity.monster;
 +
 +import com.mojang.serialization.Codec;
@@ -769,11 +769,9 @@ index 0000000000000000000000000000000000000000..f83fdd907c5f81c5cf4ceda2bfb9a94a
 +import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 +import net.minecraft.world.entity.ai.attributes.Attributes;
 +import net.minecraft.world.entity.player.Player;
-+import net.minecraft.world.entity.vehicle.AbstractMinecart;
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.item.Items;
 +import net.minecraft.world.level.Explosion;
-+import net.minecraft.world.level.GameRules;
 +import net.minecraft.world.level.Level;
 +import net.minecraft.world.level.LightLayer;
 +import net.minecraft.world.level.block.Block;
@@ -813,7 +811,7 @@ index 0000000000000000000000000000000000000000..f83fdd907c5f81c5cf4ceda2bfb9a94a
 +    public static final EntityDataAccessor<Rotations> DATA_RIGHT_ARM_POSE = SynchedEntityData.defineId(ArmorStandMonster.class, EntityDataSerializers.ROTATIONS);
 +    public static final EntityDataAccessor<Rotations> DATA_LEFT_LEG_POSE = SynchedEntityData.defineId(ArmorStandMonster.class, EntityDataSerializers.ROTATIONS);
 +    public static final EntityDataAccessor<Rotations> DATA_RIGHT_LEG_POSE = SynchedEntityData.defineId(ArmorStandMonster.class, EntityDataSerializers.ROTATIONS);
-+    private static final Predicate<Entity> RIDABLE_MINECARTS = entity -> entity instanceof AbstractMinecart abstractMinecart && abstractMinecart.isRideable();
++    private static final Predicate<Entity> RIDABLE_MINECARTS = entity -> entity instanceof net.minecraft.world.entity.vehicle.minecart.AbstractMinecart minecart && minecart.isRideable();
 +    private static final boolean DEFAULT_INVISIBLE = false;
 +    private static final int DEFAULT_DISABLED_SLOTS = 0;
 +    private static final boolean DEFAULT_SMALL = false;
@@ -941,7 +939,7 @@ index 0000000000000000000000000000000000000000..f83fdd907c5f81c5cf4ceda2bfb9a94a
 +    @Override
 +    protected void pushEntities() {
 +        if (!this.level().paperConfig().entities.armorStands.doCollisionEntityLookups) return; // Paper - Option to prevent armor stands from doing entity lookups
-+        for (Entity entity : this.level().getEntitiesOfClass(AbstractMinecart.class, this.getBoundingBox(), RIDABLE_MINECARTS)) { // Paper - optimise collisions
++        for (Entity entity : this.level().getEntitiesOfClass(net.minecraft.world.entity.vehicle.minecart.AbstractMinecart.class, this.getBoundingBox(), RIDABLE_MINECARTS)) { // Paper - optimise collisions
 +            if (this.distanceToSqr(entity) <= 0.2) {
 +                entity.push(this);
 +            }
@@ -949,38 +947,42 @@ index 0000000000000000000000000000000000000000..f83fdd907c5f81c5cf4ceda2bfb9a94a
 +    }
 +
 +    @Override
-+    public InteractionResult interactAt(Player player, Vec3 vec, InteractionHand hand) {
-+        ItemStack itemInHand = player.getItemInHand(hand);
-+        if (this.isMarker() || itemInHand.is(Items.NAME_TAG)) {
-+            return InteractionResult.PASS;
-+        } else if (player.isSpectator()) {
++    public InteractionResult interact(final Player player, final InteractionHand hand, final Vec3 location) {
++        ItemStack itemStack = player.getItemInHand(hand);
++        if (this.isMarker() || itemStack.is(Items.NAME_TAG)) {
++            return super.interact(player, hand, location);
++        }
++
++        if (player.isSpectator()) {
 +            return InteractionResult.SUCCESS;
-+        } else if (player.level().isClientSide) {
++        }
++
++        if (player.level().isClientSide()) {
 +            return InteractionResult.SUCCESS_SERVER;
++        }
++
++        EquipmentSlot itemInHandSlot = this.getEquipmentSlotForItem(itemStack);
++        if (itemStack.isEmpty()) {
++            EquipmentSlot clickedSlot = this.getClickedSlot(location);
++            EquipmentSlot targetSlot = this.isDisabled(clickedSlot) ? itemInHandSlot : clickedSlot;
++            if (this.hasItemInSlot(targetSlot) && this.swapItem(player, targetSlot, itemStack, hand)) {
++                return InteractionResult.SUCCESS_SERVER;
++            }
 +        } else {
-+            EquipmentSlot equipmentSlotForItem = this.getEquipmentSlotForItem(itemInHand);
-+            if (itemInHand.isEmpty()) {
-+                EquipmentSlot clickedSlot = this.getClickedSlot(vec);
-+                EquipmentSlot equipmentSlot = this.isDisabled(clickedSlot) ? equipmentSlotForItem : clickedSlot;
-+                if (this.hasItemInSlot(equipmentSlot) && this.swapItem(player, equipmentSlot, itemInHand, hand)) {
-+                    return InteractionResult.SUCCESS_SERVER;
-+                }
-+            } else {
-+                if (this.isDisabled(equipmentSlotForItem)) {
-+                    return InteractionResult.FAIL;
-+                }
-+
-+                if (equipmentSlotForItem.getType() == EquipmentSlot.Type.HAND && !this.showArms()) {
-+                    return InteractionResult.FAIL;
-+                }
-+
-+                if (this.swapItem(player, equipmentSlotForItem, itemInHand, hand)) {
-+                    return InteractionResult.SUCCESS_SERVER;
-+                }
++            if (this.isDisabled(itemInHandSlot)) {
++                return InteractionResult.FAIL;
 +            }
 +
-+            return InteractionResult.PASS;
++            if (itemInHandSlot.getType() == EquipmentSlot.Type.HAND && !this.showArms()) {
++                return InteractionResult.FAIL;
++            }
++
++            if (this.swapItem(player, itemInHandSlot, itemStack, hand)) {
++                return InteractionResult.SUCCESS_SERVER;
++            }
 +        }
++
++        return super.interact(player, hand, location);
 +    }
 +
 +    private EquipmentSlot getClickedSlot(Vec3 vector) {
@@ -1048,80 +1050,92 @@ index 0000000000000000000000000000000000000000..f83fdd907c5f81c5cf4ceda2bfb9a94a
 +    }
 +
 +    @Override
-+    public boolean hurtServer(ServerLevel level, DamageSource damageSource, float amount) {
++    public boolean hurtServer(final ServerLevel level, final DamageSource source, final float damage) {
 +        if (this.isRemoved()) {
 +            return false;
-+        } else if (!level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING) && damageSource.getEntity() instanceof Mob) {
++        }
++
++        if (!level.getGameRules().get(net.minecraft.world.level.gamerules.GameRules.MOB_GRIEFING) && source.getEntity() instanceof Mob) {
 +            return false;
-+        } else if (damageSource.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
++        }
++
++        if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
 +            // CraftBukkit start
-+            if (org.bukkit.craftbukkit.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, damageSource, amount)) {
++            if (org.bukkit.craftbukkit.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, source, damage)) {
 +                return false;
 +            }
-+            this.kill(level, damageSource); // CraftBukkit
++            this.kill(level, source); // CraftBukkit
 +            // CraftBukkit end
 +            return false;
-+        } else if (this.isInvulnerableTo(level, damageSource) /*|| this.invisible*/ || this.isMarker()) { // CraftBukkit
++        }
++
++        if (this.isInvulnerableTo(level, source) /*|| this.invisible*/ || this.isMarker()) { // CraftBukkit
 +            return false;
-+        } else if (damageSource.is(DamageTypeTags.IS_EXPLOSION)) {
++        }
++
++        if (source.is(DamageTypeTags.IS_EXPLOSION)) {
 +            // CraftBukkit start
-+            if (org.bukkit.craftbukkit.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, damageSource, amount, true, this.invisible)) {
++            if (org.bukkit.craftbukkit.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, source, damage, true, this.invisible)) {
 +                return false;
 +            }
 +            // CraftBukkit end
 +            // Paper start - avoid duplicate event call
-+            org.bukkit.event.entity.EntityDeathEvent event = this.brokenByAnything(level, damageSource);
-+            if (!event.isCancelled()) this.kill(level, damageSource, false); // CraftBukkit
++            org.bukkit.event.entity.EntityDeathEvent event = this.brokenByAnything(level, source);
++            if (!event.isCancelled()) this.kill(level, source, false); // CraftBukkit
 +            // Paper end
 +            return false;
-+        } else if (damageSource.is(DamageTypeTags.IGNITES_ARMOR_STANDS)) {
++        }
++
++        if (source.is(DamageTypeTags.IGNITES_ARMOR_STANDS)) {
 +            // CraftBukkit start
-+            if (org.bukkit.craftbukkit.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, damageSource, amount, true, this.invisible)) {
++            if (org.bukkit.craftbukkit.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, source, damage, true, this.invisible)) {
 +                return false;
 +            }
 +            // CraftBukkit end
 +            if (this.isOnFire()) {
-+                this.causeDamage(level, damageSource, 0.15F);
++                this.causeDamage(level, source, 0.15F);
 +            } else {
 +                this.igniteForSeconds(5.0F);
 +            }
 +
 +            return false;
-+        } else if (damageSource.is(DamageTypeTags.BURNS_ARMOR_STANDS) && this.getHealth() > 0.5F) {
++        } else if (source.is(DamageTypeTags.BURNS_ARMOR_STANDS) && this.getHealth() > 0.5F) {
 +            // CraftBukkit start
-+            if (org.bukkit.craftbukkit.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, damageSource, amount, true, this.invisible)) {
++            if (org.bukkit.craftbukkit.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, source, damage, true, this.invisible)) {
 +                return false;
 +            }
 +            // CraftBukkit end
-+            this.causeDamage(level, damageSource, 4.0F);
++            this.causeDamage(level, source, 4.0F);
 +            return false;
 +        } else {
 +            // CraftBukkit start
-+            if (org.bukkit.craftbukkit.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, damageSource, amount, true, this.invisible)) {
++            if (org.bukkit.craftbukkit.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, source, damage, true, this.invisible)) {
 +                return false;
 +            }
 +            // CraftBukkit end
-+            boolean isCanBreakArmorStand = damageSource.is(DamageTypeTags.CAN_BREAK_ARMOR_STAND);
-+            boolean isAlwaysKillsArmorStands = damageSource.is(DamageTypeTags.ALWAYS_KILLS_ARMOR_STANDS);
-+            if (!isCanBreakArmorStand && !isAlwaysKillsArmorStands) {
++            boolean allowIncrementalBreaking = source.is(DamageTypeTags.CAN_BREAK_ARMOR_STAND);
++            boolean shouldKill = source.is(DamageTypeTags.ALWAYS_KILLS_ARMOR_STANDS);
++            if (!allowIncrementalBreaking && !shouldKill) {
 +                return false;
-+            } else if (damageSource.getEntity() instanceof Player player && !player.getAbilities().mayBuild) {
++            } else if (source.getEntity() instanceof Player player && !player.getAbilities().mayBuild) {
 +                return false;
-+            } else if (damageSource.isCreativePlayer()) {
-+                this.playBrokenSound();
-+                this.showBreakingParticles();
-+                this.kill(level, damageSource); // CraftBukkit
-+                return true;
 +            } else {
-+                long gameTime = level.getGameTime();
-+                if (gameTime - this.lastHit > 5L && !isAlwaysKillsArmorStands) {
-+                    level.broadcastEntityEvent(this, (byte)32);
-+                    this.gameEvent(GameEvent.ENTITY_DAMAGE, damageSource.getEntity());
-+                    this.lastHit = gameTime;
-+                } else {
-+                    org.bukkit.event.entity.EntityDeathEvent event = this.brokenByPlayer(level, damageSource); // Paper
++                if (source.isCreativePlayer()) {
++                    this.playBrokenSound();
 +                    this.showBreakingParticles();
-+                    if (!event.isCancelled()) this.kill(level, damageSource, false); // Paper - we still need to kill to follow vanilla logic (emit the game event etc...)
++                    this.kill(level, source); // CraftBukkit
++                    return true;
++                }
++
++                long time = level.getGameTime();
++                if (time - this.lastHit > 5L && !shouldKill) {
++                    level.broadcastEntityEvent(this, net.minecraft.world.entity.EntityEvent.ARMORSTAND_WOBBLE);
++                    this.gameEvent(GameEvent.ENTITY_DAMAGE, source.getEntity());
++                    this.lastHit = time;
++                } else {
++                    org.bukkit.event.entity.EntityDeathEvent event = this.brokenByPlayer(level, source); // Paper
++                    this.showBreakingParticles();
++                    if (!event.isCancelled()) this.kill(level, source, false); // Paper - we still need to kill to follow vanilla logic (emit the game event etc...)
 +                }
 +
 +                return true;
@@ -1130,9 +1144,9 @@ index 0000000000000000000000000000000000000000..f83fdd907c5f81c5cf4ceda2bfb9a94a
 +    }
 +
 +    @Override
-+    public void handleEntityEvent(byte id) {
-+        if (id == 32) {
-+            if (this.level().isClientSide) {
++    public void handleEntityEvent(final byte id) {
++        if (id == net.minecraft.world.entity.EntityEvent.ARMORSTAND_WOBBLE) {
++            if (this.level().isClientSide()) {
 +                this.level().playLocalSound(this.getX(), this.getY(), this.getZ(), SoundEvents.ARMOR_STAND_HIT, this.getSoundSource(), 0.3F, 1.0F, false);
 +                this.lastHit = this.level().getGameTime();
 +            }
